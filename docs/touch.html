@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Touch · fabrail</title>
+<meta name="description" content="Admittance haptics running the real controller: push-to-open, detents, soft-close and passivity.">
+<meta name="color-scheme" content="dark light">
+<script src="assets/js/theme.js"></script>
+<link rel="stylesheet" href="assets/css/site.css">
+<style>
+/* touch (owner W2). Under reduced motion every animation on this page falls back to a
+   static keyframe: the playground moves only while you drag or press a key (it is your
+   input, not decoration), and the passivity lab draws its complete result at once. */
+@media (prefers-reduced-motion: reduce) {
+  .scene *, .scene *::before, .scene *::after { animation: none !important; transition: none !important; }
+}
+.btn[hidden] { display: none; }
+.page > .scene.live {
+  display: block; min-height: 0; padding: 0; text-align: left; place-items: initial;
+  background: none; border: 0; color: inherit; font-family: inherit; font-size: inherit;
+}
+.tc-stage canvas { touch-action: pan-y; cursor: grab; }
+.tc-stage canvas[data-drag="on"] { cursor: grabbing; }
+.tc-stage canvas:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.tc-grid { display: grid; gap: 1rem; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); align-items: start; margin-top: 1rem; }
+.tc-grid .readouts { margin-top: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.stat[data-alert="on"] { border-color: var(--s4); background: var(--caution-dim); }
+.two-up { display: grid; gap: 1rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.two-up > .figure { margin-top: 1rem; }
+.panel {
+  padding: 0.8rem 0.9rem; background: var(--bg-panel); border: 1px solid var(--hair);
+  border-radius: var(--radius); font-family: var(--font-sans); font-size: 0.88rem;
+}
+.panel h3 { margin-top: 0; font-family: var(--font-sans); font-size: 0.92rem; }
+.panel p { margin-top: 0.4rem; color: var(--ink-2); }
+.event-log { list-style: none; padding: 0; margin-top: 0.4rem; font-family: var(--font-mono); font-size: 0.76rem; color: var(--ink-2); min-height: 8.5rem; }
+.event-log li { display: flex; gap: 0.6rem; padding: 0.12rem 0; border-bottom: 1px solid var(--hair); }
+.event-log li + li { margin-top: 0; }
+.event-log .t { color: var(--ink-3); min-width: 4.2rem; text-align: right; }
+.event-log li[data-kind="alert"] { color: var(--ink); }
+.event-log li[data-kind="alert"] .t { color: var(--s4); }
+.req { font-family: var(--font-mono); font-size: 0.78em; color: var(--ink-3); }
+.badges { display: flex; flex-wrap: wrap; gap: 0.35rem 0.6rem; align-items: center; margin-top: 0.7rem; font-family: var(--font-sans); font-size: 0.84rem; color: var(--ink-2); }
+.engine-line { font-family: var(--font-mono); font-size: 0.76rem; color: var(--ink-3); }
+.stage-controls .seg { background: var(--bg-elev); }
+.num-table td.num, .num-table th.num { text-align: right; white-space: nowrap; }
+.note-list { font-family: var(--font-sans); font-size: 0.9rem; color: var(--ink-2); }
+.lab-grid { display: grid; gap: 1rem; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; margin-top: 1rem; }
+.lab-stage canvas { height: 150px; }
+.switch { display: inline-flex; align-items: center; gap: 0.55rem; font-family: var(--font-sans); font-size: 0.88rem; cursor: pointer; }
+.switch input { width: 1.1rem; height: 1.1rem; accent-color: var(--accent); }
+kbd { white-space: nowrap; }
+@media (max-width: 900px) {
+  .tc-grid, .two-up, .lab-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .tc-stage .stage-chip { position: static; display: block; margin: 0.6rem 0.6rem 0; border-radius: 8px; }
+}
+</style>
+</head>
+<body data-page="touch">
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <a class="wordmark" href="index.html" aria-label="fabrail home">FAB<span>·</span>RAIL</a>
+  <nav class="site-nav" aria-label="Site pages" data-site-nav>
+    <a href="index.html">Overview</a>
+    <a href="levitate.html">Levitate</a>
+    <a href="glide.html">Glide</a>
+    <a href="touch.html">Touch</a>
+    <a href="quake.html">Quake</a>
+    <a href="villa.html">Villa</a>
+    <a href="sovereign.html">Sovereign</a>
+    <a href="frontier.html">Frontier</a>
+    <a href="examples.html">Examples</a>
+  </nav>
+  <button class="theme-btn" type="button" data-theme-toggle aria-label="Toggle colour theme" title="Toggle colour theme">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"></path></svg>
+  </button>
+</header>
+<main id="main" class="page">
+  <p class="eyebrow">Haptics</p>
+  <h1>Touch as the interface.</h1>
+  <p class="lede">The rail renders a lighter, damped panel under your hand, and stays passive while doing it.</p>
+  <p>There is no force sensor in the handle. A momentum observer compares what the motor is doing with how the carriage moves and attributes the difference to a hand. The controller then renders an admittance, M<sub>v</sub>·ẍ + B<sub>v</sub>·ẋ = F̂<sub>hand</sub> + effects, with a virtual mass lighter than the real one, plus detents and a soft close. Give it a push and let go, and the gesture is read as intent: the carriage finishes the move under the energy governor. Hold it back, and the obstruction detector stops it (a drawer releases to zero force, a door or wall backs off 50 mm). Rendered lightness never reduces impact energy: the governor and the monitor act on the rated mass.</p>
+  <div class="badges"><span data-tier="v"></span> <span>apparent mass, intent, false-intent rejection, soft-close, detents, passivity, push-to-open, obstruction <span class="req">FAB-HAP-001 · 005 · 006 · 007 · 008 · 009 · 012 · FAB-SAF-006</span></span></div>
+
+  <section class="scene live wide" id="scene" aria-label="Haptic playground">
+    <figure class="stage tc-stage" id="tc-stage">
+      <div class="stage-chip" id="tc-chip" aria-live="polite">Loading the browser engine…</div>
+      <canvas id="tc-canvas" tabindex="0" role="application" aria-roledescription="haptic playground" aria-describedby="tc-howto" aria-label="Haptic playground: a drawer, door or wall on its rail. Drag it with a mouse or a finger, or focus here and use the arrow keys to push."></canvas>
+      <div class="stage-controls">
+        <div class="seg" data-choice-group id="tc-class" aria-label="Class">
+          <button data-value="drawer" aria-pressed="true">DRAWER</button>
+          <button data-value="door">DOOR</button>
+          <button data-value="wall">WALL</button>
+        </div>
+        <button class="btn" type="button" id="tc-open">Open</button>
+        <button class="btn" type="button" id="tc-close">Close</button>
+        <button class="btn" type="button" id="tc-stop">Stop</button>
+        <button class="btn" type="button" id="tc-lift" hidden>Lift</button>
+        <button class="btn" type="button" id="tc-land" hidden>Land</button>
+        <button class="btn btn--ghost" type="button" id="tc-restart">Restart</button>
+        <span data-simulated="" id="tc-sim"></span>
+        <span class="engine-line" id="tc-engine">engine: loading</span>
+      </div>
+    </figure>
+    <p class="small muted" id="tc-howto"><strong>How to touch it.</strong> Drag the panel with a mouse or a finger: your pointer pulls the handle through a virtual hand spring (drawer 1.5 N/mm, at most 30 N; door 2 N/mm, 60 N; wall 4 N/mm, 150 N), and the engine receives only that force, as it would receive a hand's. A mouse cannot feel the panel pull away, so when the controller reads your gesture and takes over the move, the page lets go of the handle for you, as a hand would; grab the moving panel and hold still to hold it back. Or focus the stage and hold <kbd>←</kbd> / <kbd>→</kbd> to push (add <kbd>Shift</kbd> for a firm push); <kbd>O</kbd>, <kbd>C</kbd> and <kbd>S</kbd> send Open, Close and Stop. A seated drawer opens when you push it in firmly (about 20 N, 1.5 mm into its spring push-stop) and let go; pulling a seated drawer does nothing, because an outward force at the seat reads as cabinet pressure.</p>
+
+    <div class="tc-grid">
+      <div class="readouts" id="tc-readouts">
+        <div class="stat"><span class="stat-label">your hand force</span><span class="stat-value num" id="tr-f">–</span><span class="stat-note" id="tr-f-note">through the hand spring</span></div>
+        <div class="stat"><span class="stat-label">observer estimate F̂</span><span class="stat-value num" id="tr-fh">–</span><span class="stat-note" id="tr-fh-note">no force sensor</span></div>
+        <div class="stat"><span class="stat-label">apparent mass</span><span class="stat-value num" id="tr-m">–</span><span class="stat-note" id="tr-m-note">push or pull to measure</span></div>
+        <div class="stat"><span class="stat-label">speed</span><span class="stat-value num" id="tr-v">–</span><span class="stat-note" id="tr-v-note">cap –</span></div>
+        <div class="stat"><span class="stat-label">position</span><span class="stat-value num" id="tr-x">–</span><span class="stat-note" id="tr-x-note">–</span></div>
+        <div class="stat" id="tr-state-box"><span class="stat-label">controller</span><span class="stat-value" id="tr-state" style="font-size:0.98rem">–</span><span class="stat-note" id="tr-state-note">–</span></div>
+      </div>
+      <div class="panel">
+        <h3>What the controller decided</h3>
+        <ol class="event-log" id="tc-log" aria-live="polite" aria-label="Controller events"><li><span class="t">–</span><span>waiting for the engine</span></li></ol>
+      </div>
+    </div>
+
+    <div class="two-up">
+      <div class="figure">
+        <div class="figure-title">Your force and the observer's estimate, last 8 s <span data-simulated="" id="force-sim"></span></div>
+        <div id="force-chart"></div>
+        <p class="figure-caption">The observer (a generalised-momentum observer with error poles at K<sub>O</sub>·{1, 3, 5}) follows a push within tens of milliseconds (FAB-HAP-004: within 10 % of peak on 5–25 N ramps over 50–150 ms). The dashed lines are the intent threshold F<sub>th</sub> for the class.</p>
+      </div>
+      <div class="figure">
+        <div class="figure-title">Speed, last 8 s <span data-simulated="" id="speed-sim"></span></div>
+        <div id="speed-chart"></div>
+        <p class="figure-caption">The governor clamps the admittance velocity at the class cap, so pushing harder than the cap allows only stretches your hand spring: it removes energy, never adds it (PHYSICS §16, §17).</p>
+      </div>
+    </div>
+  </section>
+
+  <h2 id="feel">Class feel presets</h2>
+  <p>Every class runs the same controller with its own feel. The virtual mass is the estimated mass divided by the assist ratio; the damping, detent, soft-close and thresholds are preset values (fabrail_params::presets, PHYSICS §17).</p>
+  <div class="table-wrap wide">
+    <table class="num-table" id="feel-table">
+      <thead><tr><th scope="col">Class</th><th scope="col" class="num">Assist m/M<sub>v</sub></th><th scope="col" class="num">M<sub>v</sub> at m*</th><th scope="col" class="num">B<sub>v</sub></th><th scope="col" class="num">Intent F<sub>th</sub> / dx<sub>th</sub></th><th scope="col" class="num">Detent</th><th scope="col" class="num">Soft-close ω / capture</th><th scope="col" class="num">Obstruction th₀</th><th scope="col">On obstruction</th></tr></thead>
+      <tbody>
+        <tr><td>DRAWER</td><td class="num">1.5</td><td class="num">17.3 kg</td><td class="num">10 N·s/m</td><td class="num">4.5 N / 1.5 mm</td><td class="num">3 N / 2 mm at 150 mm</td><td class="num">2 Hz / 45 mm</td><td class="num">12 N</td><td>release to 0 N</td></tr>
+        <tr><td>DOOR</td><td class="num">3</td><td class="num">33.3 kg</td><td class="num">40 N·s/m</td><td class="num">10 N / 2 mm</td><td class="num">8 N / 3 mm at 500 mm</td><td class="num">1.5 Hz / 65 mm</td><td class="num">30 N</td><td>stop, reverse 50 mm</td></tr>
+        <tr><td>WALL</td><td class="num">5</td><td class="num">100 kg</td><td class="num">450 N·s/m</td><td class="num">25 N / 3 mm</td><td class="num">20 N / 5 mm at 3 m</td><td class="num">0.5 Hz / 115 mm</td><td class="num">60 N</td><td>stop, reverse 50 mm</td></tr>
+        <tr><td>HEAVY</td><td class="num">5</td><td class="num">1,000 kg</td><td class="num">2,000 N·s/m</td><td class="num">40 N / none</td><td class="num">none</td><td class="num">0.5 Hz / 150 mm</td><td class="num">120 N</td><td>release to 0 N</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="small muted">Assist ratios are bounded by validate: m/M<sub>v</sub> ≤ 2 for the DRAWER, ≤ 5 without a handle load cell and ≤ 20 with one (FAB-HAP-002). Breakaway force is ≤ 1 / 5 / 20 N (FAB-HAP-003), reported against the 22.2 N accessible-door figure. HEAVY is not on the playground: it moves only while someone holds the button.</p>
+
+  <h2 id="passivity">Passivity: why the virtual spring has a ceiling</h2>
+  <p>A virtual spring is rendered by a sampled loop: the controller reads the position, waits one period, and holds a force for another. Each lag leaks a little energy into the carriage every cycle. Colgate and Schenkel's bound says the device's own damping b must outrun that leak: K &lt; K<sub>max</sub> = 2b/(T + 2T<sub>d</sub>). Above it, a light touch starts an oscillation that grows. fabrail keeps its rendered springs at 0.3·2b/T and runs a Hannaford–Ryu passivity controller on top: it watches the energy the loop has put out and adds just enough damping to take it back.</p>
+  <div class="panel" style="margin-top:1rem">
+    <p style="margin-top:0">This lab is a <strong>JavaScript sandbox</strong> that mirrors core::haptics::passivity on a 1-D mass with the class's physical damping and fast-loop period. The WebAssembly controller cannot be driven into this case: its passivity controller is always on and params::validate rejects a spring above K<sub>max</sub>. That is how the unstable case is shown safely.</p>
+    <div class="controls">
+      <div><span class="small muted">Class</span><br>
+        <div class="seg" data-choice-group id="pl-class" aria-label="Class for the passivity lab">
+          <button data-value="drawer" aria-pressed="true">DRAWER</button>
+          <button data-value="door">DOOR</button>
+          <button data-value="wall">WALL</button>
+        </div>
+      </div>
+      <label class="slider"><span>virtual spring K / K<sub>max</sub></span><output id="pl-k-out" for="pl-k">3.0</output>
+        <input type="range" id="pl-k" min="0.3" max="8" step="0.1" value="3"></label>
+      <div><label class="switch"><input type="checkbox" id="pl-pc" checked> passivity controller on</label>
+        <div class="btn-row" style="margin-top:0.5rem"><button class="btn" type="button" id="pl-run">Replay</button></div></div>
+    </div>
+  </div>
+  <div class="lab-grid wide">
+    <figure class="stage lab-stage" id="pl-stage" style="margin-top:0">
+      <div class="stage-chip" id="pl-chip" aria-live="polite">–</div>
+      <canvas id="pl-canvas" role="img" aria-label="A mass on a rail held by a virtual spring, oscillating after a light flick."></canvas>
+    </figure>
+    <div class="readouts" id="pl-readouts" style="margin-top:0; grid-template-columns: repeat(2, minmax(0, 1fr))">
+      <div class="stat"><span class="stat-label"><span>K<sub>max</sub> = 2b/(T + 2T<sub>d</sub>)</span></span><span class="stat-value num" id="pl-kmax">–</span><span class="stat-note" id="pl-kmax-note">–</span></div>
+      <div class="stat"><span class="stat-label"><span>net damping b − K·(T/2 + T<sub>d</sub>)</span></span><span class="stat-value num" id="pl-net">–</span><span class="stat-note">negative: the loop pumps energy in</span></div>
+      <div class="stat" id="pl-off-box"><span class="stat-label">controller off: peak after 20 s</span><span class="stat-value num" id="pl-off">–</span><span class="stat-note" id="pl-off-note">–</span></div>
+      <div class="stat"><span class="stat-label">controller on: peak after 20 s</span><span class="stat-value num" id="pl-on">–</span><span class="stat-note" id="pl-on-note">–</span></div>
+    </div>
+  </div>
+  <div class="two-up wide">
+    <div class="figure">
+      <div class="figure-title">Position after a 50 mm/s flick <span data-simulated="illustrative"></span></div>
+      <div id="pl-x-chart"></div>
+    </div>
+    <div class="figure">
+      <div class="figure-title">Energy the sampled loop generated <span data-simulated="illustrative"></span></div>
+      <div id="pl-e-chart"></div>
+      <p class="figure-caption">W − E<sub>obs</sub>: the virtual spring's stored energy minus the energy the observer saw flow into it. Positive means the loop created energy. FAB-HAP-009 asks E<sub>obs</sub> ≥ −1 mJ with the controller on and reproduces the violation at 3·K<sub>max</sub> with it off (verified on the Rust controller by rs:core/haptics/passivity::pc_bounds_energy).</p>
+    </div>
+  </div>
+
+  <h2 id="notes">What this page shows, and what it does not</h2>
+  <ul class="note-list">
+    <li><strong>Live, in WebAssembly:</strong> the playground runs the Rust observer, intent detector, admittance, detents, terminus, governor, obstruction detector and supervisor (fabrail-core through fabrail-rt) on the Carriage6 rigid-body plant, stepped in 1 ms slices in your browser. The hand is a pure force source on the front, which is all the engine's input carries.</li>
+    <li><strong>Your hand is modelled.</strong> A mouse cannot push back, so the page converts your pointer into a force with a virtual spring and damper. Holding the pointer still while the panel moves is, to the controller, a hand holding it back.</li>
+    <li><strong>The apparent-mass readout is indicative:</strong> a least-squares fit of F − B<sub>v</sub>·v = M·a over the last half second of hand-driven motion, using the plant's truth acceleration. FAB-HAP-001 (±10 % of M<sub>v</sub>) is verified by its own push profile in the test suite.</li>
+    <li><strong>Without the engine</strong> the playground falls back to a JavaScript copy of the admittance law with the detent and soft-close spring and says so; there is no intent, obstruction or supervisor in that fallback.</li>
+    <li>The passivity lab is a sandbox, labelled illustrative. No hardware haptic device was measured; no feel is claimed beyond what the simulation shows.</li>
+  </ul>
+
+  <aside class="tier-legend" aria-label="Tier badges">
+    <strong>Tier badges</strong>
+    <ul>
+      <li><span class="badge badge--v">✅ V</span> verified in simulation</li>
+      <li><span class="badge badge--s">🔶 S</span> simplified model</li>
+      <li><span class="badge badge--r">🧪 R</span> research tier</li>
+      <li><span class="badge badge--m">🗺️ M</span> roadmap</li>
+      <li><span class="badge badge--f">🔭 frontier</span> overrides the badge: theoretical, never a product</li>
+    </ul>
+    <p>Technology maturity (TRL) is shown separately and never raises a badge. Badges follow <code>docs/SPECIFICATION.md</code> §0.5.</p>
+  </aside>
+</main>
+<footer class="site-footer">
+  <span>fabrail · MIT licence · simulation results, not hardware measurements</span>
+  <span class="selftest-badge" data-selftest data-state="pending">selftest: pending</span>
+</footer>
+<script src="assets/data/anchors.js"></script>
+<script src="assets/js/nav.js"></script>
+<script src="assets/js/formulas.js"></script>
+<script src="assets/js/plot.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/engine.js"></script>
+<script src="assets/js/scene-touch.js"></script>
+</body>
+</html>

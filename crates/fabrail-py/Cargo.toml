@@ -1,0 +1,29 @@
+[package]
+name = "fabrail-py"
+description = "fabrail PyO3 bindings: the fabrail._native extension module (arrays cross as little-endian bytes)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lib]
+name = "_native"
+# cdylib -> Python extension module; rlib -> native `cargo check`/`cargo test` of the glue.
+crate-type = ["cdylib", "rlib"]
+doctest = false
+
+# std crate. Excluded from default-members so `cargo test` never links libpython.
+[dependencies]
+fabrail-types = { path = "../fabrail-types", features = ["serde"] }
+fabrail-params = { path = "../fabrail-params", features = ["serde"] }
+fabrail-rt = { path = "../fabrail-rt" }
+fabrail-plant = { path = "../fabrail-plant" }
+fabrail-sim = { path = "../fabrail-sim" }
+fabrail-exo-sim = { path = "../fabrail-exo-sim", features = ["py"] }
+pyo3 = { workspace = true }
+serde_json = { workspace = true }
+
+[features]
+# maturin enables this so the extension links against the host interpreter dynamically;
+# `cargo check`/`cargo test` omit it so the glue links libpython normally.
+extension-module = ["pyo3/extension-module"]

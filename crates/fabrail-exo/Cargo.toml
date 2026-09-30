@@ -1,0 +1,27 @@
+[package]
+name = "fabrail-exo"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.89"
+license = "MIT"
+description = "fabrail sovereign-tier controllers and estimators (f32): HMD/DVF mode ladder, tuning, isolation skyhook, energy admission, closure planner, allocation, EEW fusion, house choreographer"
+
+[lib]
+doctest = false
+
+# no_std: every dependency is spelled out (no workspace inheritance).
+[dependencies]
+fabrail-types = { path = "../fabrail-types" }
+fabrail-params = { path = "../fabrail-params" }
+fabrail-core = { path = "../fabrail-core" }
+fabrail-exo-safety = { path = "../fabrail-exo-safety" }
+serde = { version = "1.0.228", default-features = false, features = ["derive"], optional = true }
+
+[dev-dependencies]
+proptest = "1.10"
+
+[features]
+serde = ["dep:serde", "fabrail-types/serde", "fabrail-params/serde", "fabrail-core/serde", "fabrail-exo-safety/serde"]
+# Enables the alert `Injector` (fusion). Enabled only by fabrail-exo-sim; must never
+# appear in a firmware feature set (FAB-EXO-307).
+fault-injection = []

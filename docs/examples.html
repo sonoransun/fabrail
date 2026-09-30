@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Examples · fabrail</title>
+<meta name="description" content="The sixteen runnable fabrail examples: each a short script with its badge, technology maturity, story, command and key numbers.">
+<meta name="color-scheme" content="dark light">
+<script src="assets/js/theme.js"></script>
+<link rel="stylesheet" href="assets/css/site.css">
+<style>
+/* examples (owner W4). The gallery has no animation; thumbnails are static drawings.
+   Under reduced motion transitions are removed as everywhere else. */
+@media (prefers-reduced-motion: reduce) {
+  .scene *, .scene *::before, .scene *::after,
+  .gallery *, .gallery *::before, .gallery *::after { animation: none !important; transition: none !important; }
+}
+
+.gallery-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 1rem; margin-top: 1.4rem; font-family: var(--font-sans); font-size: 0.86rem; color: var(--ink-2); max-width: none; }
+.gallery-bar .seg .badge { font-size: 0.7rem; }
+.gallery { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 21rem), 1fr)); margin-top: 1rem; max-width: none; }
+.ex-card {
+  display: flex; flex-direction: column; background: var(--bg-panel); border: 1px solid var(--line);
+  border-radius: var(--radius); overflow: hidden; position: relative;
+}
+.ex-card[hidden] { display: none; }
+.ex-card::before { content: ""; position: absolute; left: 0; top: 0; right: 0; height: 3px; background: var(--tile, var(--line)); }
+.ex-card:target { box-shadow: 0 0 0 2px var(--accent); }
+.ex-thumb { position: relative; aspect-ratio: 16 / 7; background: var(--bg-deep); border-bottom: 1px solid var(--hair); }
+.ex-thumb canvas, .ex-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.ex-body { display: flex; flex-direction: column; gap: 0.45rem; padding: 0.8rem 0.95rem 0.9rem; flex: 1 1 auto; font-family: var(--font-sans); }
+.ex-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.55rem; }
+.ex-num { font-family: var(--font-mono); font-size: 0.78rem; color: var(--ink-3); min-width: 1.6em; }
+.ex-head h3 { margin: 0; font-size: 1rem; font-family: var(--font-sans); }
+.ex-head h3 code { background: transparent; padding: 0; font-size: 0.95rem; color: var(--ink); }
+.ex-maturity { margin: 0; font-size: 0.78rem; color: var(--ink-3); }
+.ex-story { margin: 0; font-family: var(--font-serif); font-size: 0.97rem; line-height: 1.55; color: var(--ink-2); }
+.ex-caveat { margin: 0; font-size: 0.8rem; color: var(--ink-2); padding-left: 0.6rem; border-left: 2px solid var(--line); }
+.ex-keys { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.ex-keys li { margin: 0; font-size: 0.76rem; color: var(--ink); background: var(--bg-elev); border: 1px solid var(--hair); border-radius: 999px; padding: 0.1rem 0.55rem; font-variant-numeric: tabular-nums; }
+.ex-keys li + li { margin-top: 0; }
+.ex-labels { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.ex-cmd { display: flex; align-items: center; gap: 0.4rem; margin-top: auto; padding-top: 0.3rem; }
+.ex-cmd code { flex: 1 1 auto; min-width: 0; white-space: normal; overflow-wrap: anywhere; font-size: 0.74rem; padding: 0.35rem 0.5rem; border: 1px solid var(--hair); }
+.ex-cmd .btn { min-height: 32px; padding: 0.25rem 0.6rem; font-size: 0.76rem; flex: none; }
+.ex-link { font-size: 0.8rem; }
+.ex-count { font-variant-numeric: tabular-nums; }
+.glance td.num { text-align: right; }
+.glance td:nth-child(2) { white-space: nowrap; }
+</style>
+</head>
+<body data-page="examples">
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <a class="wordmark" href="index.html" aria-label="fabrail home">FAB<span>·</span>RAIL</a>
+  <nav class="site-nav" aria-label="Site pages" data-site-nav>
+    <a href="index.html">Overview</a>
+    <a href="levitate.html">Levitate</a>
+    <a href="glide.html">Glide</a>
+    <a href="touch.html">Touch</a>
+    <a href="quake.html">Quake</a>
+    <a href="villa.html">Villa</a>
+    <a href="sovereign.html">Sovereign</a>
+    <a href="frontier.html">Frontier</a>
+    <a href="examples.html">Examples</a>
+  </nav>
+  <button class="theme-btn" type="button" data-theme-toggle aria-label="Toggle colour theme" title="Toggle colour theme">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"></path></svg>
+  </button>
+</header>
+<main id="main" class="page">
+  <p class="eyebrow">Gallery</p>
+  <h1>Sixteen runnable examples.</h1>
+  <p class="lede">Each is a short script. <code>python -m fabrail example list</code> names them; <code>python -m fabrail example run NAME --quick</code> writes a figure and a JSON record to <code>examples/out/NAME/</code> (full runs are slow-tier).</p>
+  <div class="banner frontier" role="note"><span class="badge badge--f">🔭 frontier</span> Examples 15 and 16 are frontier what-if studies, never product claims; their outputs carry the frontier banner and the orders of magnitude still missing.</div>
+  <div class="callout" role="note">
+    <p><strong>How to read a card.</strong> The badge is fabrail's own status and never exceeds the weakest requirement the example demonstrates (FAB-EXA-002). Maturity is the technology's readiness in the world, in its own line, and never raises the badge. Every alert in an example is synthetic/injected, not a live EEW feed, and an example on a roadmap class runs on a reduced model and says so.</p>
+  </div>
+
+  <div class="gallery-bar">
+    <span>Show</span>
+    <div class="seg" id="ex-filter" data-choice-group aria-label="Filter by badge">
+      <button type="button" data-value="all" aria-pressed="true">All</button>
+      <button type="button" data-value="v" aria-label="Verified in simulation"><span class="badge badge--v">✅ V</span></button>
+      <button type="button" data-value="s" aria-label="Simplified model"><span class="badge badge--s">🔶 S</span></button>
+      <button type="button" data-value="r" aria-label="Research tier"><span class="badge badge--r">🧪 R</span></button>
+      <button type="button" data-value="f" aria-label="Frontier"><span class="badge badge--f">🔭</span></button>
+    </div>
+    <span class="ex-count" id="ex-count" aria-live="polite">16 examples</span>
+  </div>
+
+  <div class="gallery" id="gallery">
+    <article class="ex-card" id="kitchen_push_open" data-badge="v" style="--tile: var(--class-drawer)">
+      <div class="ex-thumb" data-thumb="drawer" data-example="kitchen_push_open"></div>
+      <div class="ex-body">
+        <div class="ex-head"><span class="ex-num">01</span><h3><code>kitchen_push_open</code></h3><span class="badge badge--v">✅ V</span></div>
+        <p class="ex-maturity">Maturity: maglev drawer TRL 3; mechanical push-to-open TRL 9</p>
+        <p class="ex-story">Push a seated drawer and it lifts off its captive seat, glides open on a log-damped terminus, and later closes back onto the seat the same way. Across 8 to 48 kg the apparent mass stays within ±10 % of the rendered mass.</p>
+        <p class="ex-caveat">Haptic lightness does not reduce impact energy: the governor and the monitor use the rated mass. The unseat and slot exit at the full rated 48 kg are under review (capability matrix §1.9).</p>
+        <ul class="ex-keys"><li>τ 0.15 s</li><li>d₀ 49.8 mm</li><li>arrival 0.98 s + 0.2 s seat</li><li>cap 0.265 m/s at 48 kg</li></ul>
+        <div class="ex-cmd"><code>python -m fabrail example run kitchen_push_open --quick</code><button class="btn btn--ghost" type="button" data-copy>Copy</button></div>
+        <a class="ex-link" href="touch.html">Drag a drawer yourself →</a>
+      </div>
+    </article>
+
+    <article class="ex-card" id="pantry_cabinet_slider" data-badge="v" style="--tile: var(--class-drawer)">
+      <div class="ex-thumb" data-thumb="slider" data-example="pantry_cabinet_slider"></div>
+      <div class="ex-body">
+        <div class="ex-head"><span class="ex-num">02</span><h3><code>pantry_cabinet_slider</code></h3><span class="badge badge--v">✅ V</span></div>
+        <p class="ex-maturity">Maturity: maglev drawer TRL 3; mechanical soft-close TRL 9</p>
+        <p class="ex-story">An 8 kg sliding cabinet door derived from the DRAWER class, off any egress path and with a latch fitted. Detents give it clicks you can feel, and its close is plotted on a semilog chart where the capture phase is a straight line.</p>
+        <ul class="ex-keys"><li>τ 0.2 s</li><li>d₀ / d_b 40.0 / 23.5 mm</li><li>arrival 1.27 s</li></ul>
+        <div class="ex-cmd"><code>python -m fabrail example run pantry_cabinet_slider --quick</code><button class="btn btn--ghost" type="button" data-copy>Copy</button></div>
+        <a class="ex-link" href="glide.html">The log-damped terminus →</a>
+      </div>
+    </article>
+
+    <article class="ex-card" id="office_door_obstruction" data-badge="s" style="--tile: var(--class-door)">
+      <div class="ex-thumb" data-thumb="door" data-example="office_door_obstruction"></div>
+      <div class="ex-body">
+        <div class="ex-head"><span class="ex-num">03</span><h3><code>office_door_obstruction</code></h3><span class="badge badge--s">🔶 S</span></div>
+        <p class="ex-maturity">Maturity: maglev sliding door TRL 4–5; linear-motor sliding doors TRL 9</p>
+        <p class="ex-story">A 100 kg low-energy sliding door meets a chest in its path. The obstruction is detected and the contact force stays under its clamp, checked in simulation against numeric limits from EN 16005 (2011 draft).</p>
+        <ul class="ex-keys"><li>open 0.184 / close 0.152 m/s</li><li>67 N unsensed, 150 N sensed</li><li>chest clamp 290.7 N at 1.69 J</li></ul>
+        <div class="ex-cmd"><code>python -m fabrail example run office_door_obstruction --quick</code><button class="btn btn--ghost" type="button" data-copy>Copy</button></div>
+        <a class="ex-link" href="glide.html">The governor and the pinch dial →</a>
+      </div>
+    </article>
+
+    <article class="ex-card" id="ballroom_partition" data-badge="v" style="--tile: var(--class-wall)">
+      <div class="ex-thumb" data-thumb="wall" data-example="ballroom_partition"></div>
+      <div class="ex-body">
+        <div class="ex-head"><span class="ex-num">04</span><h3><code>ballroom_partition</code></h3><span class="badge badge--v">✅ V</span></div>
+        <p class="ex-maturity">Maturity: hybrid EMS TRL 4–5 at laboratory scale; operable partitions TRL 9 (mechanical)</p>
+        <p class="ex-story">A 500 kg partition wall feels like 100 kg to the hand (rendered at m/5). It compares the sensed and unsensed timing of the same move, and seals to ±1 mm at the end of travel.</p>
+        <p class="ex-caveat">Unsensed, momentum caps it at 0.0446 m/s; presence sensing is what allows faster moves.</p>
+        <ul class="ex-keys"><li>M_v = m/5</li><li>τ 0.6 s, arrival 3.56 s</li><li>seal ±1 mm</li></ul>
+        <div class="ex-cmd"><code>python -m fabrail example run ballroom_partition --quick</code><button class="btn btn--ghost" type="button" data-copy>Copy</button></div>
+        <a class="ex-link" href="touch.html">Class feel presets →</a>
+      </div>
+    </article>
+
+    <article class="ex-card" id="archive_heavy_shelving" data-badge="v" style="--tile: var(--class-heavy)">
+      <div class="ex-thumb" data-thumb="heavy" data-example="archive_heavy_shelving"></div>
+      <div class="ex-body">
+        <div class="ex-head"><span class="ex-num">05</span><h3><code>archive_heavy_shelving</code></h3><span class="badge badge--v">✅ V</span></div>
+        <p class="ex-maturity">Maturity: HEAVY class research; hybrid EMS TRL 4–5 at laboratory scale</p>
+        <p class="ex-story">Five-tonne archive shelving moves only while someone holds the button. The momentum governor keeps its speed down even when the payload estimate is sabotaged, because it plans with max(m_rated, 1.05·m̂).</p>
+        <p class="ex-caveat">Runs on the Heave1 and Travel1d plants; the six-degree-of-freedom HEAVY case is under review (capability matrix §1.9).</p>
+        <ul class="ex-keys"><li>hold-to-run 0.025 m/s</li><li>stop 4.91 mm</li><li>arrival 5.84 s</li></ul>
+        <div class="ex-cmd"><code>python -m fabrail example run archive_heavy_shelving --quick</code><button class="btn btn--ghost" type="button" data-copy>Copy</button></div>
+        <a class="ex-link" href="glide.html">Momentum is the real limit →</a>
+      </div>
+    </article>
+
+    <article class="ex-card" id="drawer_power_loss" data-badge="v" style="--tile: var(--class-drawer)">
+      <div class="ex-thumb" data-thumb="power" data-example="drawer_power_loss"></div>
+      <div class="ex-body">
+        <div class="ex-head"><span class="ex-num">06</span><h3><code>drawer_power_loss</code></h3><span class="badge badge--v">✅ V</span></div>
+        <p class="ex-maturity">Maturity: maglev drawer TRL 3; supercapacitor hold-up TRL 9</p>
+        <p class="ex-story">Cut the power under an open drawer: it runs SS1 Safe Landing on its supercapacitor, rests on its travel rollers, and can still be pushed by hand.</p>
+        <p class="ex-caveat">Above 20 kg a failed-down drawer cannot re-lift onto its seat: a manual push to re-seat is required.</p>
+        <ul class="ex-keys"><li>re-lift ≤ 20 kg</li><li>roller μ 0.003</li><li>open hover ≈ 5 min on the supercap</li></ul>
+        <div class="ex-cmd"><code>python -m fabrail example run drawer_power_loss --quick</code><button class="btn btn--ghost" type="button" data-copy>Copy</button></div>
+        <a class="ex-link" href="levitate.html">Earnshaw and the landing →</a>
+      </div>
+    </article>
+
+    <article class="ex-card" id="wall_pwave_m7" data-badge="v" style="--tile: var(--wave-p)">
+      <div class="ex-thumb" data-thumb="pwave" data-example="wall_pwave_m7"></div>
+      <div class="ex-body">
+        <div class="ex-head"><span class="ex-num">07</span><h3><code>wall_pwave_m7</code></h3><span class="badge badge--v">✅ V</span></div>
+        <p class="ex-maturity">Maturity: detector and land-first policy simulated; the ADXL355 structure accelerometer is a catalogue part</p>
+        <p class="ex-story">An M7 twenty kilometres away. The structure accelerometer picks the P-wave, and a partition wall freezes, lands and locks before the S-wave arrives: land-first.</p>
+        <p class="ex-caveat">The seismic action is not a rated safety function (SF-08). Closer than about 20 km there is no useful on-site warning.</p>
+        <div class="ex-labels"><span class="sim-label">synthetic/injected, not a live EEW feed</span></div>
+        <ul class="ex-keys"><li>S−P 0.119 s/km</li><li>decision 1.2 s</li><li>Pd 0.7118 cm (M7, 20 km)</li></ul>
+        <div class="ex-cmd"><code>python -m fabrail example run wall_pwave_m7 --quick</code><button class="btn btn--ghost" type="button" data-copy>Copy</button></div>
+        <a class="ex-link" href="quake.html">The earthquake arrives twice →</a>
+      </div>
+    </article>
+
+    <article class="ex-card" id="villa_quake" data-badge="r" style="--tile: var(--wave-s)">
+      <div class="ex-thumb" data-thumb="villa" data-example="villa_quake"></div>
+      <div class="ex-body">
+        <div class="ex-head"><span class="ex-num">08</span><h3><code>villa_quake</code></h3><span class="badge badge--r">🧪 R</span><span class="small muted">overall; a badge per panel</span></div>
+        <p class="ex-maturity">Maturity: house choreographer research; each device keeps its class maturity</p>
+        <p class="ex-story">The flagship: a hillside villa in a synthetic M7.2 at 60 km. Open drawers close toward their seats under unattended limits on log-damped curves, the pantry door lands without locking, the salon wall lands and locks, and every device that could not be secured is reported with its reason.</p>
+        <p class="ex-caveat">Contents are reported only as "no Coulomb slip event in the sliding-block model", or as the slip count.</p>
+        <div class="ex-labels"><span class="sim-label">simulated replay</span><span class="sim-label">synthetic/injected, not a live EEW feed</span></div>
+        <ul class="ex-keys"><li>t_P 10.2 s, t_S 17.5 s</li><li>budget 5.7–7.3 s</li><li>0.23 m/s at 48 kg</li></ul>
+        <div class="ex-cmd"><code>python -m fabrail example run villa_quake</code><button class="btn btn--ghost" type="button" data-copy>Copy</button></div>
+        <a class="ex-link" href="villa.html">The villa replay →</a>
+      </div>
+    </article>
+
+    <article class="ex-card" id="supertall_wind_day" data-badge="r" style="--tile: var(--class-exotic)">
+      <div class="ex-thumb" data-thumb="tower" data-example="supertall_wind_day"></div>
+      <div class="ex-body">
+        <div class="ex-head"><span class="ex-num">09</span><h3><code>supertall_wind_day</code></h3><span class="badge badge--r">🧪 R</span></div>
+        <p class="ex-maturity">Maturity: TRL 3–4 (1,000 t maglev planar bearing); eddy damping TRL 9</p>
+        <p class="ex-story">SENTINEL, a 1,000 t hybrid mass damper with an ironless LSM, on a windy day. It activates below 0.3 mg, and the drop in the tower's sway is reported against the tower's own damping.</p>
+        <p class="ex-caveat">Mass dampers are mainly wind devices: at design-level shaking they add at most about 0.7 % damping.</p>
+        <ul class="ex-keys"><li>44.7 % at μ 1 %, ζs 1 %</li><li>30.0 % at ζs 2 %</li><li>T 7 s, ±1.5 m</li></ul>
+        <div class="ex-cmd"><code>python -m fabrail example run supertall_wind_day --quick</code><button class="btn btn--ghost" type="button" data-copy>Copy</button></div>
+        <a class="ex-link" href="sovereign.html#sentinel">SENTINEL →</a>
+      </div>
+    </article>
+
+    <article class="ex-card" id="museum_haven_quake" data-badge="r" style="--tile: var(--class-exotic)">
+      <div class="ex-thumb" data-thumb="plinth" data-example="museum_haven_quake"></div>
+      <div class="ex-body">
+        <div class="ex-head"><span class="ex-num">10</span><h3><code>museum_haven_quake</code></h3><span class="badge badge--r">🧪 R</span></div>
+        <p class="ex-maturity">Maturity: TRL 2–3</p>
+        <p class="ex-story">A HAVEN-R platform at a 6 s isolation period carries a museum piece through an earthquake, comparing passive damping with skyhook damping; moat covers bridge the gap at its edge.</p>
+        <p class="ex-caveat">No ASCE 7 Ch. 17 prototype tests, no code path; the moat edge is a shear hazard, which is why it has covers and exclusion.</p>
+        <ul class="ex-keys"><li>R 8.95 m</li><li>DBE 0.072 g (analysis)</li><li>0.5 Hz: 0.193 / 0.124</li></ul>
+        <div class="ex-cmd"><code>python -m fabrail example run museum_haven_quake --quick</code><button class="btn btn--ghost" type="button" data-copy>Copy</button></div>
+        <a class="ex-link" href="sovereign.html#haven">HAVEN-R →</a>
+      </div>
+    </article>
+
+    <article class="ex-card" id="proton_shield_pwave" data-badge="r" style="--tile: var(--class-exotic)">
+      <div class="ex-thumb" data-thumb="shield" data-example="proton_shield_pwave"></div>
+      <div class="ex-body">
+        <div class="ex-head"><span class="ex-num">11</span><h3><code>proton_shield_pwave</code></h3><span class="badge badge--r">🧪 R</span></div>
+        <p class="ex-maturity">Maturity: TRL 3</p>
+        <p class="ex-story">A 50 t shielding door in a proton-therapy vault takes a P-wave alert: beam off, then land and lock within 2 s, inside a guarded zone with a personnel protection system.</p>
+        <p class="ex-caveat">Radiation ageing of magnets and sensors is unquantified, and SmCo activates to Co-60.</p>
+        <div class="ex-labels"><span class="sim-label">reduced model</span><span class="sim-label">synthetic/injected, not a live EEW feed</span></div>
+        <ul class="ex-keys"><li>land and lock ≤ 2 s</li><li>ISO 13855 S 2.61 m</li><li>bumper 6.25 kJ</li></ul>
+        <div class="ex-cmd"><code>python -m fabrail example run proton_shield_pwave --quick</code><button class="btn btn--ghost" type="button" data-copy>Copy</button></div>
+        <a class="ex-link" href="sovereign.html#classes">The sovereign classes →</a>
+      </div>
+    </article>
+
+    <article class="ex-card" id="vault_close_race" data-badge="r" style="--tile: var(--class-exotic)">
+      <div class="ex-thumb" data-thumb="vault" data-example="vault_close_race"></div>
+      <div class="ex-body">
+        <div class="ex-head"><span class="ex-num">12</span><h3><code>vault_close_race</code></h3><span class="badge badge--r">🧪 R</span></div>
+        <p class="ex-maturity">Maturity: TRL 2–3</p>
+        <p class="ex-story">BASTION's closure race: can a 50 t sliding plug close 3 m and seal before a pressure front arrives? The arrival time is an input; the answer is a close or a fallback.</p>
+        <p class="ex-caveat">A close needs the front to arrive at least 5.85 s after detection, a source about 2 km away or more. fabrail publishes no yield-to-distance tables.</p>
+        <ul class="ex-keys"><li>3 m in 5.246 s</li><li>peak 1.144 m/s</li><li>t_a ≥ 5.85 s</li></ul>
+        <div class="ex-cmd"><code>python -m fabrail example run vault_close_race --quick</code><button class="btn btn--ghost" type="button" data-copy>Copy</button></div>
+        <a class="ex-link" href="sovereign.html#bastion">The closure race →</a>
+      </div>
+    </article>
+
+    <article class="ex-card" id="stadium_tray_pod_failure" data-badge="r" style="--tile: var(--class-exotic)">
+      <div class="ex-thumb" data-thumb="tray" data-example="stadium_tray_pod_failure"></div>
+      <div class="ex-body">
+        <div class="ex-head"><span class="ex-num">13</span><h3><code>stadium_tray_pod_failure</code></h3><span class="badge badge--r">🧪 R</span></div>
+        <p class="ex-maturity">Maturity: TRL 3; dynamic simulation 🗺️ roadmap</p>
+        <p class="ex-story">An 8,600 t stadium field tray loses 1 of its 500 pods. The load is reallocated by weighted least squares, and the tray lands if any quadrant drops below 1.3× its weight share.</p>
+        <div class="ex-labels"><span class="sim-label">reduced model</span><span class="sim-label">static allocation only</span></div>
+        <ul class="ex-keys"><li>1 of 500 pods</li><li>LAND below 1.3×</li><li>ISO 13855 S 10.61 m</li></ul>
+        <div class="ex-cmd"><code>python -m fabrail example run stadium_tray_pod_failure --quick</code><button class="btn btn--ghost" type="button" data-copy>Copy</button></div>
+        <a class="ex-link" href="sovereign.html#arena">Fail a pod yourself →</a>
+      </div>
+    </article>
+
+    <article class="ex-card" id="tidegate_offshore_m8" data-badge="r" style="--tile: var(--class-exotic)">
+      <div class="ex-thumb" data-thumb="gate" data-example="tidegate_offshore_m8"></div>
+      <div class="ex-body">
+        <div class="ex-head"><span class="ex-num">14</span><h3><code>tidegate_offshore_m8</code></h3><span class="badge badge--r">🧪 R</span></div>
+        <p class="ex-maturity">Maturity: TRL 2; triggering TRL 7–9</p>
+        <p class="ex-story">An offshore M8: land, seafloor-cable and fibre-optic feeds are fused, the warning at the coast is timed, and the tide gate closes only after the shaking ends and only on the command of an external decision system.</p>
+        <p class="ex-caveat">Timing only, no inundation. Buoyant and hydraulic gates beat maglev physically; the transferable part is the trigger stack.</p>
+        <div class="ex-labels"><span class="sim-label">reduced model</span><span class="sim-label">synthetic/injected, not a live EEW feed</span></div>
+        <ul class="ex-keys"><li>0.154 s per km of sensor advance</li><li>warning 12.4 / 23.5 / 26.3 s</li></ul>
+        <div class="ex-cmd"><code>python -m fabrail example run tidegate_offshore_m8 --quick</code><button class="btn btn--ghost" type="button" data-copy>Copy</button></div>
+        <a class="ex-link" href="sovereign.html#tidegate">The tide-gate timeline →</a>
+      </div>
+    </article>
+
+    <article class="ex-card" id="pegs_long_period_securing" data-badge="f" style="--tile: var(--frontier)">
+      <div class="ex-thumb" data-thumb="pegs" data-example="pegs_long_period_securing"></div>
+      <div class="ex-body">
+        <div class="ex-head"><span class="ex-num">15</span><h3><code>pegs_long_period_securing</code></h3><span class="badge badge--f">🔭 frontier</span></div>
+        <p class="ex-maturity">Maturity: frontier; anchor tier 🧪 network PEGS magnitude (Mw ≥ 8.3)</p>
+        <p class="ex-story">A far-field Mw 9. A PEGS magnitude advisory that does not saturate, together with a corroborating network alert, secures a heavy stage wagon, a decision that can afford tens of seconds.</p>
+        <p class="ex-caveat">PEGS is never a sole trigger. An on-site gradiometer would need 1e-15/√Hz; the best demonstrated is 1e-10/√Hz, five orders short.</p>
+        <div class="ex-labels"><span class="sim-label">synthetic/injected, not a live EEW feed</span></div>
+        <ul class="ex-keys"><li>5 orders missing</li><li>advisory only</li></ul>
+        <div class="ex-cmd"><code>python -m fabrail example run pegs_long_period_securing --quick</code><button class="btn btn--ghost" type="button" data-copy>Copy</button></div>
+        <a class="ex-link" href="frontier.html#pegs">PEGS against the P-wave →</a>
+      </div>
+    </article>
+
+    <article class="ex-card" id="lunar_hatch_selene" data-badge="f" style="--tile: var(--frontier)">
+      <div class="ex-thumb" data-thumb="moon" data-example="lunar_hatch_selene"></div>
+      <div class="ex-body">
+        <div class="ex-head"><span class="ex-num">16</span><h3><code>lunar_hatch_selene</code></h3><span class="badge badge--f">🔭 frontier</span></div>
+        <p class="ex-maturity">Maturity: frontier, TRL 1–2; anchor tier 🧪 NASA/JPL FLOAT concept</p>
+        <p class="ex-story">A 100 t hatch in a permanently shadowed lunar crater on passive flux-pinned HTS: what the Moon's gravity and cold do to the open-loop pole, the lift and the radiator budget.</p>
+        <p class="ex-caveat">Lunar dust carries nanophase metallic iron that collects on permanent-magnet guideways; fabrail does not model it.</p>
+        <ul class="ex-keys"><li>pole ×0.406</li><li>0.145 W/m² at 40 K</li><li>2 orders missing</li></ul>
+        <div class="ex-cmd"><code>python -m fabrail example run lunar_hatch_selene --quick</code><button class="btn btn--ghost" type="button" data-copy>Copy</button></div>
+        <a class="ex-link" href="frontier.html#selene">SELENE →</a>
+      </div>
+    </article>
+  </div>
+
+  <h2 id="glance-title">All sixteen at a glance</h2>
+  <div class="table-wrap wide">
+    <table class="glance" aria-labelledby="glance-title">
+      <thead><tr><th scope="col" class="num">#</th><th scope="col">Example</th><th scope="col">Badge</th><th scope="col">Class</th><th scope="col">Maturity</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td><a href="#kitchen_push_open"><code>kitchen_push_open</code></a></td><td><span class="badge badge--v">✅ V</span></td><td>DRAWER</td><td>TRL 3 (maglev drawer)</td></tr>
+        <tr><td class="num">2</td><td><a href="#pantry_cabinet_slider"><code>pantry_cabinet_slider</code></a></td><td><span class="badge badge--v">✅ V</span></td><td>DRAWER-derived slider</td><td>TRL 3</td></tr>
+        <tr><td class="num">3</td><td><a href="#office_door_obstruction"><code>office_door_obstruction</code></a></td><td><span class="badge badge--s">🔶 S</span></td><td>DOOR</td><td>TRL 4–5</td></tr>
+        <tr><td class="num">4</td><td><a href="#ballroom_partition"><code>ballroom_partition</code></a></td><td><span class="badge badge--v">✅ V</span></td><td>WALL</td><td>TRL 4–5 (hybrid EMS, laboratory)</td></tr>
+        <tr><td class="num">5</td><td><a href="#archive_heavy_shelving"><code>archive_heavy_shelving</code></a></td><td><span class="badge badge--v">✅ V</span></td><td>HEAVY</td><td>research at 5 t</td></tr>
+        <tr><td class="num">6</td><td><a href="#drawer_power_loss"><code>drawer_power_loss</code></a></td><td><span class="badge badge--v">✅ V</span></td><td>DRAWER</td><td>TRL 3</td></tr>
+        <tr><td class="num">7</td><td><a href="#wall_pwave_m7"><code>wall_pwave_m7</code></a></td><td><span class="badge badge--v">✅ V</span></td><td>WALL</td><td>detector simulated</td></tr>
+        <tr><td class="num">8</td><td><a href="#villa_quake"><code>villa_quake</code></a></td><td><span class="badge badge--r">🧪 R</span></td><td>house scene</td><td>research</td></tr>
+        <tr><td class="num">9</td><td><a href="#supertall_wind_day"><code>supertall_wind_day</code></a></td><td><span class="badge badge--r">🧪 R</span></td><td>SENTINEL</td><td>TRL 3–4</td></tr>
+        <tr><td class="num">10</td><td><a href="#museum_haven_quake"><code>museum_haven_quake</code></a></td><td><span class="badge badge--r">🧪 R</span></td><td>HAVEN-R</td><td>TRL 2–3</td></tr>
+        <tr><td class="num">11</td><td><a href="#proton_shield_pwave"><code>proton_shield_pwave</code></a></td><td><span class="badge badge--r">🧪 R</span></td><td>SHIELD (reduced model)</td><td>TRL 3</td></tr>
+        <tr><td class="num">12</td><td><a href="#vault_close_race"><code>vault_close_race</code></a></td><td><span class="badge badge--r">🧪 R</span></td><td>BASTION</td><td>TRL 2–3</td></tr>
+        <tr><td class="num">13</td><td><a href="#stadium_tray_pod_failure"><code>stadium_tray_pod_failure</code></a></td><td><span class="badge badge--r">🧪 R</span></td><td>ARENA (reduced model)</td><td>TRL 3</td></tr>
+        <tr><td class="num">14</td><td><a href="#tidegate_offshore_m8"><code>tidegate_offshore_m8</code></a></td><td><span class="badge badge--r">🧪 R</span></td><td>TIDEGATE (reduced model)</td><td>TRL 2</td></tr>
+        <tr><td class="num">15</td><td><a href="#pegs_long_period_securing"><code>pegs_long_period_securing</code></a></td><td><span class="badge badge--f">🔭 frontier</span></td><td>stage wagon</td><td>frontier</td></tr>
+        <tr><td class="num">16</td><td><a href="#lunar_hatch_selene"><code>lunar_hatch_selene</code></a></td><td><span class="badge badge--f">🔭 frontier</span></td><td>SELENE</td><td>frontier, TRL 1–2</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="small muted">Badges follow SPECIFICATION_EXAMPLES §1; the registry (<code>python -m fabrail example list</code>) is the source of truth, and the reader-facing gallery text is EXAMPLES.md. Thumbnails are schematic drawings; the generated figures replace them once <code>docs/images/examples/</code> exists.</p>
+
+  <aside class="tier-legend" aria-label="Tier badges">
+    <strong>Tier badges</strong>
+    <ul>
+      <li><span class="badge badge--v">✅ V</span> verified in simulation</li>
+      <li><span class="badge badge--s">🔶 S</span> simplified model</li>
+      <li><span class="badge badge--r">🧪 R</span> research tier</li>
+      <li><span class="badge badge--m">🗺️ M</span> roadmap</li>
+      <li><span class="badge badge--f">🔭 frontier</span> overrides the badge: theoretical, never a product</li>
+    </ul>
+    <p>Technology maturity (TRL) is shown separately and never raises a badge. Badges follow <code>docs/SPECIFICATION.md</code> §0.5.</p>
+  </aside>
+</main>
+<footer class="site-footer">
+  <span>fabrail · MIT licence · simulation results, not hardware measurements</span>
+  <span class="selftest-badge" data-selftest data-state="pending">selftest: pending</span>
+</footer>
+<script src="assets/data/anchors.js"></script>
+<script src="assets/js/nav.js"></script>
+<script src="assets/js/plot.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/engine.js"></script>
+<script src="assets/js/scene-examples.js"></script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+[package]
+name = "fabrail-exo-sim"
+description = "fabrail sovereign-tier truth models (f64): suspension trait and models, storage, host structures, HAVEN-R platform, ground motion, EEW timing, tsunami, scenarios, building scenes"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lib]
+doctest = false
+
+# std crate.
+[dependencies]
+fabrail-types = { path = "../fabrail-types", features = ["serde"] }
+fabrail-params = { path = "../fabrail-params", features = ["serde"] }
+fabrail-plant = { path = "../fabrail-plant" }
+fabrail-sim = { path = "../fabrail-sim", default-features = false }
+fabrail-exo = { path = "../fabrail-exo", features = ["serde", "fault-injection"] }
+fabrail-exo-safety = { path = "../fabrail-exo-safety", features = ["serde"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+rayon = { workspace = true, optional = true }
+pyo3 = { workspace = true, optional = true }
+
+[dev-dependencies]
+approx = { workspace = true }
+proptest = { workspace = true }
+
+[features]
+default = ["parallel"]
+# rayon across scene devices (results summed in registry index order).
+parallel = ["dep:rayon", "fabrail-sim/parallel"]
+# Exposes `py::register(m)`, which adds the flat `exo_*` / `exo_scene_*` functions to
+# fabrail._native (no PyO3 submodule). Enabled by fabrail-py.
+py = ["dep:pyo3"]

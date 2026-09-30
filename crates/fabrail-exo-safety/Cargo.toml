@@ -1,0 +1,24 @@
+[package]
+name = "fabrail-exo-safety"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.89"
+license = "MIT"
+description = "fabrail sovereign-tier safety (integer): plain-data exo types, MVS 2oo3 voter, degradation ladder, black channel, zone machine, integer envelope, alert gate, PFH"
+
+[lib]
+doctest = false
+
+# no_std: every dependency is spelled out (no workspace inheritance).
+# Dependency rule: types + params ONLY. Never fabrail-core, fabrail-exo, fabrail-plant,
+# fabrail-exo-sim or frontier code (FAB-EXO-003, transitive closure test).
+[dependencies]
+fabrail-types = { path = "../fabrail-types" }
+fabrail-params = { path = "../fabrail-params" }
+serde = { version = "1.0.228", default-features = false, features = ["derive"], optional = true }
+
+[dev-dependencies]
+proptest = "1.10"
+
+[features]
+serde = ["dep:serde", "fabrail-types/serde", "fabrail-params/serde"]

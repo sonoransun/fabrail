@@ -1,0 +1,27 @@
+[package]
+name = "fabrail-params"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.89"
+license = "MIT"
+description = "fabrail parameters: the single source of presets, closed forms (derive), validation, field metadata and the safety-block CRC"
+
+[lib]
+doctest = false
+
+# no_std: every dependency is spelled out (no workspace inheritance).
+[dependencies]
+fabrail-types = { path = "../fabrail-types" }
+# Declared for version parity with fabrail-types only; code in this crate calls
+# `fabrail_types::fmath`, never `libm` directly.
+libm = { version = "0.2.16", default-features = false, features = ["force-soft-floats"] }
+serde = { version = "1.0.228", default-features = false, features = ["derive"], optional = true }
+
+[dev-dependencies]
+# float_roundtrip: bit-exact JSON round trips (tests/serde_roundtrip.rs strict path).
+serde_json = { version = "1", features = ["float_roundtrip"] }
+proptest = "1.10"
+
+[features]
+# Enabled by the host (sim/py JSON) and by firmware (postcard param pages).
+serde = ["dep:serde", "fabrail-types/serde"]

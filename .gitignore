@@ -1,0 +1,50 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Generated output
+output/
+examples/out/
+
+# Rust build output
+target/
+firmware/target/
+
+# Compiled extension module (maturin develop)
+python/fabrail/*.so
+
+# Test caches
+.pytest_cache/
+.hypothesis/
+
+# Externally fetched records (El Centro etc.; never vendored). Anchored to the root:
+# docs/assets/data/, tests/data/ and python/fabrail/data/ are tracked.
+/data/
+
+# Environment variables
+.env
+.env.*
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Editors / IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~

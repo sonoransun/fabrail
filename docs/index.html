@@ -1,0 +1,808 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fabrail</title>
+<meta name="description" content="Magnetically suspended, magnetically propelled rails for cabinetry, sliding doors and movable infrastructure: an animated tour of the simulator and control stack.">
+<meta name="color-scheme" content="dark light">
+<script src="assets/js/theme.js"></script>
+<link rel="stylesheet" href="assets/css/site.css">
+<style>
+/* index (owner A13). Under reduced motion every animation on this page falls back to a
+   static keyframe: the hero draws one storyboard frame and waits for the Play button. */
+@media (prefers-reduced-motion: reduce) {
+  .scene *, .scene *::before, .scene *::after,
+  .hero *, .hero *::before, .hero *::after { animation: none !important; transition: none !important; }
+}
+
+.hero { padding: 3rem var(--gutter) 2.2rem; }
+.hero-inner { max-width: var(--page-max); }
+.hero-copy { max-width: var(--measure); }
+.hero-copy h1 { margin-top: 0.4rem; }
+.hero-copy .lede { margin-top: 0.8rem; }
+.hero-stage { max-width: var(--page-max); margin: 1.6rem auto 0; }
+.hero-stage canvas { height: clamp(300px, 44vw, 500px); }
+.hero-stage figcaption { padding: 0 0.75rem 0.7rem; background: var(--bg-panel); font-family: var(--font-sans); font-size: 0.8rem; color: var(--ink-3); }
+.hero-clock { margin-left: auto; font-family: var(--font-mono); font-size: 0.78rem; color: var(--ink-2); }
+.hero-instruments {
+  max-width: var(--page-max); margin: 1rem auto 0;
+  display: grid; gap: 1rem; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); align-items: start;
+}
+.hero-instruments .figure { margin-top: 0; }
+
+.phase-list { list-style: none; padding: 0; margin: 0; counter-reset: phase; font-family: var(--font-sans); font-size: 0.86rem; }
+.phase-list li {
+  position: relative; margin: 0; padding: 0.55rem 0.7rem 0.55rem 2.3rem;
+  border: 1px solid var(--hair); border-radius: var(--radius); background: var(--bg-panel); color: var(--ink-2);
+}
+.phase-list li + li { margin-top: 0.4rem; }
+.phase-list li::before {
+  counter-increment: phase; content: counter(phase);
+  position: absolute; left: 0.65rem; top: 0.6rem; width: 1.2rem; height: 1.2rem; border-radius: 50%;
+  display: grid; place-items: center; font-size: 0.72rem; font-weight: 700;
+  color: var(--ink-2); border: 1px solid var(--line);
+}
+.phase-list li[aria-current="step"] { border-color: var(--accent); color: var(--ink); }
+.phase-list li[aria-current="step"]::before { background: var(--accent); border-color: var(--accent); color: var(--bg-deep); }
+.phase-list .phase-t { display: block; font-family: var(--font-mono); font-size: 0.74rem; color: var(--ink-3); }
+.phase-list strong { color: var(--ink); }
+.phase-list .badge { margin-left: 0.3em; font-size: 0.7rem; }
+
+.proof {
+  margin-top: 2.2rem; padding: 1rem 1.1rem; max-width: none;
+  background: var(--bg-panel); border: 1px solid var(--line); border-radius: var(--radius);
+}
+.proof h2 { margin-top: 0; font-size: 1.25rem; }
+.proof-grid {
+  display: grid; gap: 0.5rem 1.2rem; margin-top: 0.9rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr));
+  font-family: var(--font-sans); font-size: 0.86rem;
+}
+.proof-grid dt { color: var(--ink-3); font-size: 0.76rem; }
+.proof-grid dd { color: var(--ink); font-weight: 600; overflow-wrap: anywhere; }
+.proof-grid dd[data-state="ok"] { color: var(--good); }
+.proof-grid dd[data-state="mismatch"] { color: var(--plot-ref); }
+
+.card { position: relative; overflow: hidden; }
+.card::after {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--tile, var(--line));
+}
+.card .card-go { display: block; margin-top: 0.5rem; font-family: var(--font-sans); font-size: 0.8rem; color: var(--accent); }
+
+.keytable { width: 100%; }
+.keytable td.num, .keytable th.num { text-align: right; }
+.keytable td { white-space: nowrap; }
+.keytable td:first-child { white-space: nowrap; }
+.class-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 0.45em; background: var(--key); vertical-align: 0.05em; }
+
+@media (max-width: 860px) {
+  .hero-instruments { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .hero { padding-top: 2rem; }
+  .hero-stage .stage-chip { position: static; display: block; margin: 0.6rem 0.6rem 0; border-radius: 8px; }
+  .hero-stage canvas { height: clamp(380px, 118vw, 560px); }
+  .hero-clock { margin-left: 0; width: 100%; }
+}
+</style>
+</head>
+<body data-page="index">
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <a class="wordmark" href="index.html" aria-label="fabrail home">FAB<span>·</span>RAIL</a>
+  <nav class="site-nav" aria-label="Site pages" data-site-nav>
+    <a href="index.html">Overview</a>
+    <a href="levitate.html">Levitate</a>
+    <a href="glide.html">Glide</a>
+    <a href="touch.html">Touch</a>
+    <a href="quake.html">Quake</a>
+    <a href="villa.html">Villa</a>
+    <a href="sovereign.html">Sovereign</a>
+    <a href="frontier.html">Frontier</a>
+    <a href="examples.html">Examples</a>
+  </nav>
+  <button class="theme-btn" type="button" data-theme-toggle aria-label="Toggle colour theme" title="Toggle colour theme">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"></path></svg>
+  </button>
+</header>
+<main id="main">
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="hero-inner">
+      <div class="hero-copy">
+        <p class="eyebrow">Magnetic rails for cabinetry, doors and movable infrastructure</p>
+        <h1 id="hero-title">A rail you cannot feel.</h1>
+        <p class="lede">Magnetic suspension and propulsion for drawers, doors, walls and heavy panels, with programmable touch, momentum limits and seismic early warning. Everything on this site is simulated: nothing here has been built or measured in hardware.</p>
+        <div class="btn-row">
+          <a class="btn btn--primary" href="levitate.html">See it levitate</a>
+          <a class="btn" href="quake.html">How the warning works</a>
+          <a class="btn btn--ghost" href="villa.html">The villa replay</a>
+        </div>
+      </div>
+    </div>
+
+    <figure class="stage hero-stage" id="hero-stage">
+      <div class="stage-chip" id="hero-chip" aria-live="polite">A drawer floats under its rail; the S-wave finds it already seated.</div>
+      <canvas id="hero-canvas" role="img" aria-describedby="hero-phases" aria-label="Animated illustration: a drawer floats under a steel rail, a P-wave reaches the house, the drawer glides shut on a log-damped curve and is seated before the S-wave arrives. The numbered steps below describe the same sequence."></canvas>
+      <div class="stage-controls">
+        <button class="btn" id="hero-play" type="button" aria-pressed="false" hidden>Play animation</button>
+        <button class="btn btn--ghost" id="hero-restart" type="button" hidden>Restart</button>
+        <span data-simulated="illustrative"></span>
+        <span class="hero-clock num" id="hero-clock">M7 at 40 km · closed forms, DRAWER preset</span>
+      </div>
+      <figcaption>Timing and geometry come from the closed forms in <code>assets/js/formulas.js</code> (DRAWER preset, checked against <code>fabrail_params::derive</code>); the ground motion and house sway are schematic. Gap and shaking are exaggerated for visibility.</figcaption>
+    </figure>
+
+    <div class="hero-instruments">
+      <div class="figure">
+        <div class="figure-title">Distance to go, on a log scale <span data-simulated="closed"></span></div>
+        <div id="hero-semilog"></div>
+        <p class="figure-caption">"Log-damped" has a precise meaning here: during capture the distance to go is d<sub>b</sub>·e<sup>−t/τ</sup>, a straight line on a log axis (τ = <span data-story="tau">0.15 s</span>). A constant-jerk blend leads in; a quintic takes the last <span data-story="deps">0.2 mm</span> to rest. PHYSICS §16.1.</p>
+      </div>
+      <ol class="phase-list" id="hero-phases">
+        <li data-phase="0"><span class="phase-t">before t<sub>P</sub></span><strong>Floating.</strong> Permanent magnets carry the drawer and the coil current settles to zero at equilibrium. Left alone the float would diverge: its open-loop pole is <span data-story="pole">69.5 rad/s</span>, a <span data-story="poleTau">14.4 ms</span> time constant. <span data-tier="v"></span></li>
+        <li data-phase="1"><span class="phase-t">t<sub>P</sub> = <span data-story="tP">6.67 s</span> after origin</span><strong>The P-wave arrives.</strong> At 40 km hypocentral distance it leads the S-wave by <span data-story="sp">4.76 s</span>. The structure accelerometer picks it; Pd (Wu–Zhao: <span data-story="pd">0.27 cm</span> for M7) and τc need <span data-story="decision">1.2 s</span> of signal. <span data-tier="s"></span></li>
+        <li data-phase="2"><span class="phase-t">PROTECT at <span data-story="tProt">7.87 s</span></span><strong>The drawer glides shut.</strong> With the local pick as confirmation, the house choreographer closes open drawers toward the seat at the unattended limit, <span data-story="vU">0.230 m/s</span> for 48 kg (150 N into a hand behind a 10 N/mm edge). The last <span data-story="d0">42.3 mm</span> follow the log-damped terminus. <span data-tier="r"></span></li>
+        <li data-phase="3"><span class="phase-t">seated at <span data-story="tSeated">10.26 s</span></span><strong>Seated, with time to spare.</strong> 0.30 m in <span data-story="tMove">2.19 s</span> plus a <span data-story="tSeat">0.2 s</span> z-step onto the captive seat: <span data-story="margin">1.17 s</span> before the S-wave. The core default for a drawer is simpler: freeze, then stay seated. <span data-tier="v"></span></li>
+        <li data-phase="4"><span class="phase-t">t<sub>S</sub> = <span data-story="tS">11.43 s</span></span><strong>The S-wave arrives.</strong> The house sways; the drawer stays seated. After QUIET, nothing re-opens until a manual INSPECT reset and a local restore command. <span data-tier="s"></span></li>
+      </ol>
+    </div>
+  </section>
+
+  <div class="page">
+    <section class="proof" aria-labelledby="proof-title">
+      <h2 id="proof-title">The same controller, computed in your browser</h2>
+      <p>When the WebAssembly build is present, this page loads the real Rust controller and plant and runs the 2,000-tick self-test that the firmware image runs at boot. The resulting hash must equal <code>GOLDEN_SELFTEST_HASH</code> bit for bit. Without it, pages fall back to closed forms that node checks against the Rust anchors.</p>
+      <dl class="proof-grid">
+        <div><dt>Status</dt><dd data-selftest-field="text">loading the browser engine…</dd></div>
+        <div><dt>Engine</dt><dd data-selftest-field="mode">loading</dd></div>
+        <div><dt>Hash computed here</dt><dd class="num" data-selftest-field="computed">not computed</dd></div>
+        <div><dt>Golden hash</dt><dd class="num" data-selftest-field="golden">pending freeze</dd></div>
+      </dl>
+    </section>
+
+    <h2>Capabilities</h2>
+    <div class="cards">
+      <a class="card" href="levitate.html" style="--tile: var(--class-drawer)"><span data-tier="v"></span><h3>Levitate</h3><p>Zero-power hybrid suspension: magnets carry the weight, coils only correct. Earnshaw's instability, live, with the control switched off on demand.</p><span class="card-go">Levitate →</span></a>
+      <a class="card" href="glide.html" style="--tile: var(--class-door)"><span data-tier="v"></span><h3>Glide</h3><p>Jerk-limited S-curves, the log-damped terminus and the energy and momentum governor that sets every speed cap.</p><span class="card-go">Glide →</span></a>
+      <a class="card" href="touch.html" style="--tile: var(--class-wall)"><span data-tier="v"></span><h3>Touch</h3><p>Admittance haptics you can drag: push-to-open, detents, soft-close and the passivity limit, running the real controller.</p><span class="card-go">Touch →</span></a>
+      <a class="card" href="quake.html" style="--tile: var(--wave-p)"><span data-tier="s"></span><h3>Quake</h3><p>The earthquake arrives twice. P-wave detection, lead time against distance, and land-first class actions.</p><span class="card-go">Quake →</span></a>
+      <a class="card" href="villa.html" style="--tile: var(--wave-s)"><span data-tier="r"></span><h3>Villa</h3><p>A simulated replay of a house that seats its own drawers before the S-wave, with every residual reported.</p><span class="card-go">Villa →</span></a>
+      <a class="card" href="sovereign.html" style="--tile: var(--class-heavy)"><span data-tier="r"></span><h3>Sovereign</h3><p>Tower mass dampers, isolation plinths and vault doors: the physics bounds that remain when cost is no object.</p><span class="card-go">Sovereign →</span></a>
+      <a class="card" href="frontier.html" style="--tile: var(--frontier)"><span data-tier="f"></span><h3>Frontier</h3><p>What-if studies, each with the orders of magnitude still missing. Never products.</p><span class="card-go">Frontier →</span></a>
+      <a class="card" href="examples.html" style="--tile: var(--class-exotic)"><span class="badge badge--m">per example</span><h3>Examples</h3><p>Sixteen runnable scripts, each with its figure, command and key numbers, and a badge no higher than its weakest requirement.</p><span class="card-go">Examples →</span></a>
+    </div>
+
+    <h2>Four classes, one control stack</h2>
+    <p>The same controller runs every class; only the parameters change. These numbers are computed in your browser from the closed forms and the preset inputs <span data-simulated="closed"></span></p>
+    <div class="table-wrap wide">
+      <table class="keytable" id="keytable">
+        <thead>
+          <tr><th scope="col">Class</th><th scope="col" class="num">Rated mass</th><th scope="col" class="num">Open-loop pole</th><th scope="col" class="num">Speed cap (open / close)</th><th scope="col" class="num">Stop distance</th><th scope="col" class="num">Terminus arrival</th><th scope="col" class="num">Clamp, hand ⊕ edge</th></tr>
+        </thead>
+        <tbody>
+          <tr data-class="drawer"><td><span class="class-dot" style="--key: var(--class-drawer)"></span>DRAWER</td><td class="num" data-k="mass">48 kg</td><td class="num" data-k="pole_rad_s">69.5 rad/s</td><td class="num" data-k="caps">0.265 / 0.265 m/s</td><td class="num" data-k="d_stop_m">33.4 mm</td><td class="num" data-k="terminus_t_arrive_s">0.983 s</td><td class="num" data-k="clamp_hand_edge_n">173 N</td></tr>
+          <tr data-class="door"><td><span class="class-dot" style="--key: var(--class-door)"></span>DOOR</td><td class="num" data-k="mass">100 kg</td><td class="num" data-k="pole_rad_s">47.6 rad/s</td><td class="num" data-k="caps">0.184 / 0.152 m/s</td><td class="num" data-k="d_stop_m">36.3 mm</td><td class="num" data-k="terminus_t_arrive_s">1.67 s</td><td class="num" data-k="clamp_hand_edge_n">173 N</td></tr>
+          <tr data-class="wall"><td><span class="class-dot" style="--key: var(--class-wall)"></span>WALL</td><td class="num" data-k="mass">500 kg</td><td class="num" data-k="pole_rad_s">32.5 rad/s</td><td class="num" data-k="caps">0.0446 / 0.0446 m/s</td><td class="num" data-k="d_stop_m">8.86 mm</td><td class="num" data-k="terminus_t_arrive_s">3.56 s</td><td class="num" data-k="clamp_hand_edge_n">93.7 N</td></tr>
+          <tr data-class="heavy"><td><span class="class-dot" style="--key: var(--class-heavy)"></span>HEAVY</td><td class="num" data-k="mass">5,000 kg</td><td class="num" data-k="pole_rad_s">32.5 rad/s</td><td class="num" data-k="caps">0.025 / 0.025 m/s</td><td class="num" data-k="d_stop_m">4.91 mm</td><td class="num" data-k="terminus_t_arrive_s">5.84 s</td><td class="num" data-k="clamp_hand_edge_n">166 N</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small muted">Speed caps are unsensed pedestrian limits (1.69 J kinetic energy, 22.3 kg·m/s momentum); HEAVY moves only on hold-to-run. Stop distance is jerk-limited at the class deceleration. Clamp force is a free mass at the cap into a hand (75 N/mm) behind a 10 N/mm closing edge. PHYSICS §3, §16, §16.1, §18.</p>
+
+    <div class="figure wide">
+      <div class="figure-title">Momentum is the real limit</div>
+      <div id="caps-chart"></div>
+      <p class="figure-caption">Below <span data-story="mCross">147 kg</span> the kinetic-energy cap binds; above it the momentum cap is stricter, which is why a 500 kg wall creeps at <span data-story="vWall">0.0446 m/s</span> unless presence sensing is fitted. HEAVY sits above the momentum line only because it moves while a person holds the button. Closed forms, FAB-SAF-001/002.</p>
+    </div>
+
+    <div class="callout scope" role="note">
+      <p><strong>Scope, stated honestly.</strong></p>
+      <ul>
+        <li>"Zero friction" is a direction, not a claim: the modelled equivalent friction is about 1e-3 to 1e-2, never 0.</li>
+        <li>Everything is simulation. The firmware builds and links for an STM32G474 but has never been flashed; no number on this site is a hardware measurement.</li>
+        <li>No certification or standards compliance is claimed. Limits are checked in simulation against numeric limits from named editions.</li>
+        <li>Contactless only in motion. Drawers rest on a captive seat; walls and heavy panels rest landed. A drawer's open hover is limited by its supercapacitor.</li>
+        <li>The seismic policy is land-first, and the seismic action is not a rated safety function. Isolation and active mass damping are research tier; mass dampers are mainly wind devices.</li>
+        <li>No useful on-site warning closer than about 20 km, and no live early-warning feed: network alerts in the simulator are synthetic inputs.</li>
+        <li>The alert-driven close in the animation is the research-tier house choreographer, moving only toward the seat, at unattended limits, after local confirmation.</li>
+        <li>No whole-building levitation. The villa example reports Coulomb slip events in a sliding-block model and nothing stronger.</li>
+        <li>Frontier items are theoretical and never products.</li>
+      </ul>
+      <p class="small muted" id="trace-line">Requirement traceability counts appear here after the first generated data run.</p>
+    </div>
+
+    <aside class="tier-legend" aria-label="Tier badges">
+      <strong>Tier badges</strong>
+      <ul>
+        <li><span class="badge badge--v">✅ V</span> verified in simulation</li>
+        <li><span class="badge badge--s">🔶 S</span> simplified model</li>
+        <li><span class="badge badge--r">🧪 R</span> research tier</li>
+        <li><span class="badge badge--m">🗺️ M</span> roadmap</li>
+        <li><span class="badge badge--f">🔭 frontier</span> overrides the badge: theoretical, never a product</li>
+      </ul>
+      <p>Technology maturity (TRL) is shown separately and never raises a badge. Badges follow <code>docs/SPECIFICATION.md</code> §0.5.</p>
+    </aside>
+  </div>
+</main>
+<footer class="site-footer">
+  <span>fabrail · MIT licence · simulation results, not hardware measurements</span>
+  <span class="selftest-badge" data-selftest data-state="pending">selftest: pending</span>
+</footer>
+<script src="assets/data/anchors.js"></script>
+<script src="assets/data/run.js"></script>
+<script src="assets/data/trace.js"></script>
+<script src="assets/js/nav.js"></script>
+<script src="assets/js/formulas.js"></script>
+<script src="assets/js/plot.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/engine.js"></script>
+<script>
+/* index scenes (owner A13): the hero animation, its semilog instrument, the class table
+   and the speed-cap chart, all from FabrailFormulas. Without JavaScript the static text
+   above carries the same numbers. */
+(function () {
+  "use strict";
+  var F = window.FabrailFormulas, P = window.FabrailPlot, UI = window.FabrailUI;
+  if (!F || !P || !UI) return;
+  var doc = document;
+  var C = F.CONST, D = F.CLASSES.drawer;
+  var fmt = UI.fmt, fmtSI = UI.fmtSI;
+
+  /* ---- the story, from closed forms (PHYSICS §16.1, §18, §20) ---------------------- */
+  var R_KM = 40, MAG = 7;
+  var tP = R_KM / C.VP_KMPS;                         /* P arrival after origin */
+  var tS = R_KM / C.VS_KMPS;                         /* S arrival after origin */
+  var tProt = tP + C.ONSITE_DECISION_S;              /* on-site PROTECT decision */
+  var kSer = F.seriesK(C.K_HAND_N_PER_M, D.k_edge_n_per_m);
+  var vU = F.unattendedCloseSpeed(D.v_close_max_mps, C.F_STATIC_SENSED_N, D.mass_rated_kg, kSer);
+  var prof = F.closeProfile({
+    lengthM: D.travel_m, vMps: vU, aMaxMps2: D.a_max_mps2, jMaxMps3: D.j_max_mps3,
+    tauS: D.tau_s, jTermMps3: D.j_term_mps3, dEpsM: D.d_eps_m, seatS: C.SEAT_TIME_S
+  });
+  var tMove = prof.T - prof.tSeat;
+  var tSeated = tProt + prof.T;
+  var pole = F.openLoopPole(D.g_star_m, F.hPrime(D.h_m_m, D.mu_rec));
+  var mCross = (C.P_MAX_KGMPS * C.P_MAX_KGMPS) / (2 * C.E_MAX_J);
+  var story = {
+    tau: fmtSI(D.tau_s, "s", 3), deps: fmtSI(D.d_eps_m, "m", 2),
+    pole: fmt(pole, 3) + " rad/s", poleTau: fmtSI(1 / pole, "s", 3),
+    tP: fmtSI(tP, "s", 3), tS: fmtSI(tS, "s", 4), sp: fmtSI(F.spTime(R_KM), "s", 3),
+    pd: fmt(F.pdWuZhao(MAG, R_KM) * 100, 2) + " cm", decision: fmtSI(C.ONSITE_DECISION_S, "s", 2),
+    tProt: fmtSI(tProt, "s", 3), vU: fmt(vU, 3) + " m/s", d0: fmtSI(prof.terminus.d0, "m", 3),
+    tSeated: fmtSI(tSeated, "s", 4), tMove: fmtSI(tMove, "s", 3), tSeat: fmtSI(prof.tSeat, "s", 2),
+    margin: fmtSI(tS - tSeated, "s", 3), mCross: fmt(mCross, 3) + " kg",
+    vWall: fmt(F.momentumCap(F.CLASSES.wall.mass_rated_kg), 3) + " m/s"
+  };
+  var els = doc.querySelectorAll("[data-story]");
+  for (var i = 0; i < els.length; i++) {
+    var key = els[i].getAttribute("data-story");
+    if (story[key]) els[i].textContent = story[key];
+  }
+
+  /* ---- class table and speed-cap chart -------------------------------------------- */
+  var rows = doc.querySelectorAll("#keytable tr[data-class]");
+  for (var r = 0; r < rows.length; r++) {
+    var cls = rows[r].getAttribute("data-class"), c = F.CLASSES[cls], dv = F.derivedFor(cls);
+    var cells = rows[r].querySelectorAll("[data-k]");
+    for (var q = 0; q < cells.length; q++) {
+      var k = cells[q].getAttribute("data-k"), cellText = null;
+      if (k === "mass") cellText = fmt(c.mass_rated_kg, 4) + " kg";
+      else if (k === "caps") cellText = fmt(dv.v_open_cap_mps, 3) + " / " + fmt(dv.v_close_cap_mps, 3) + " m/s";
+      else if (k === "pole_rad_s") cellText = fmt(dv.pole_rad_s, 3) + " rad/s";
+      else if (k === "d_stop_m") cellText = fmtSI(dv.d_stop_m, "m", 3);
+      else if (k === "terminus_t_arrive_s") cellText = fmtSI(dv.terminus_t_arrive_s, "s", 3);
+      else if (k === "clamp_hand_edge_n") cellText = fmtSI(dv.clamp_hand_edge_n, "N", 3);
+      if (cellText) cells[q].textContent = cellText;
+    }
+  }
+
+  var capsEl = doc.getElementById("caps-chart");
+  if (capsEl) {
+    var dw = F.derivedFor("drawer"), dd = F.derivedFor("door"), dwl = F.derivedFor("wall"), dh = F.derivedFor("heavy");
+    P.chart(capsEl, {
+      kind: "loglog", title: "Unsensed speed caps against moving mass",
+      desc: "Log-log chart. The kinetic-energy cap falls as one over the square root of mass, the momentum cap as one over mass; they cross at " + story.mCross + ". Class operating points: DRAWER, DOOR, WALL and HEAVY.",
+      x: { label: "moving mass", unit: "kg", min: 5, max: 10000 },
+      y: { label: "speed cap", unit: "m/s", min: 0.002, max: 0.8 },
+      series: [
+        { key: "energy", label: "energy cap √(2E/m), E = 1.69 J", color: "ink2", fn: function (m) { return F.vLowEnergy(m); }, samples: 160 },
+        { key: "momentum", label: "momentum cap p/m, p = 22.3 kg·m/s", color: "muted", dash: [6, 4], fn: function (m) { return F.momentumCap(m); }, samples: 160 }
+      ],
+      refs: [{ axis: "x", value: mCross, label: "crossover " + story.mCross, color: "muted", dash: [2, 4] }],
+      points: [
+        { x: F.CLASSES.drawer.mass_rated_kg, y: dw.v_open_cap_mps, label: "DRAWER", color: "drawer" },
+        { x: F.CLASSES.door.mass_rated_kg, y: dd.v_open_cap_mps, label: "DOOR (open)", color: "door", dy: 12 },
+        { x: F.CLASSES.wall.mass_rated_kg, y: dwl.v_open_cap_mps, label: "WALL", color: "wall" },
+        { x: F.CLASSES.heavy.mass_rated_kg, y: dh.v_open_cap_mps, label: "HEAVY, hold-to-run", color: "heavy" }
+      ],
+      height: 300, table: true
+    });
+  }
+
+  /* ---- traceability line (generated TRACE data, when present) ---------------------- */
+  var tr = window.TRACE, trEl = doc.getElementById("trace-line");
+  if (tr && !tr.placeholder && trEl && tr.total) {
+    var st = tr.by_status || {};
+    trEl.textContent = tr.total + " requirements traced to tests; " + ((st.V || 0) + (st["V(I)"] || 0)) +
+      " verified in simulation or by inspection, " + (st.S || 0) + " simplified, " + (st.R || 0) +
+      " research, " + (st.M || 0) + " roadmap.";
+  }
+
+  /* ---- hero: semilog instrument ------------------------------------------------------- */
+  var distData = [], expData = [], n = 360;
+  for (var s = 0; s <= n; s++) {
+    var t = (tMove * s) / n, d = prof.sample(t).d;
+    if (d > 0) distData.push([t, d]);
+  }
+  var tb0 = prof.tCaptureStart, tq0 = prof.tQuinticStart;
+  for (var e = 0; e <= 40; e++) {
+    var te = tb0 - 0.35 + ((tq0 - tb0 + 0.5) * e) / 40;
+    expData.push([te, prof.terminus.dB * Math.exp(-(te - tb0) / D.tau_s)]);
+  }
+  var semiEl = doc.getElementById("hero-semilog");
+  var semi = semiEl ? P.chart(semiEl, {
+    kind: "semilog", title: "Distance to go during the automatic close",
+    desc: "Semilog chart of the drawer's distance to the seat against time since PROTECT: a curved approach while accelerating and cruising, then a straight line during the exponential capture, then a quintic to rest below 0.2 mm.",
+    x: { label: "time since PROTECT", unit: "s", min: 0, max: tMove + 0.05 },
+    y: { label: "distance to go", unit: "m", si: true, min: 1e-4, max: 0.5 },
+    series: [
+      { key: "d", label: "distance to go (terminus plan)", color: "drawer", data: distData },
+      { key: "exp", label: "d_b·e^(−t/τ)", color: "muted", dash: [5, 4], width: 1.5, data: expData }
+    ],
+    refs: [
+      { axis: "x", value: tb0, label: "capture", color: "muted", dash: [2, 4] },
+      { axis: "y", value: D.d_eps_m, label: "d_ε " + story.deps, color: "muted", dash: [2, 4] }
+    ],
+    height: 240, table: true, tableRows: 30
+  }) : null;
+
+  /* ---- hero: the scene ------------------------------------------------------------ */
+  var stage = doc.getElementById("hero-stage");
+  var canvas = doc.getElementById("hero-canvas");
+  var chip = doc.getElementById("hero-chip");
+  var clock = doc.getElementById("hero-clock");
+  var playBtn = doc.getElementById("hero-play");
+  var restartBtn = doc.getElementById("hero-restart");
+  var phaseItems = doc.querySelectorAll("#hero-phases li[data-phase]");
+  if (!canvas || !stage) return;
+
+  var T0 = tP - 3.4, T1 = tS + 5.2, FADE = 1.1, LOOP = T1 - T0 + FADE;
+  var STILL_T = tProt + prof.tCaptureStart + 0.3;   /* storyboard frame: terminus under way */
+  var PHASES = [
+    { until: tP, item: 0, text: "Floating: the magnets carry the drawer and the coil current settles to zero" },
+    { until: tProt, item: 1, text: "P-wave picked at the structure accelerometer · measuring Pd and τc" },
+    { until: tProt + prof.tCaptureStart, item: 2, text: "PROTECT · closing toward the seat at the unattended limit, " + story.vU },
+    { until: tProt + tMove, item: 2, text: "Log-damped terminus: the distance to go falls as e^(−t/τ)" },
+    { until: tSeated, item: 3, text: "Seating: a " + story.tSeat + " z-step onto the captive seat" },
+    { until: tS, item: 3, text: "Seated " + story.margin + " before the S-wave" },
+    { until: tS + 3.6, item: 4, text: "S-wave: the house sways, the drawer stays seated" },
+    { until: Infinity, item: 4, text: "QUIET · nothing re-opens before a manual INSPECT reset" }
+  ];
+
+  var col = {}, geo = null, cv = null, lastPhase = -1, lastReveal = -1, current = STILL_T, loop = null, pinned = false;
+  function colours() {
+    var names = ["deep", "panel", "ink", "ink2", "muted", "line", "grid", "axis", "accent", "p", "s", "drawer", "good", "ref"];
+    for (var i = 0; i < names.length; i++) col[names[i]] = P.color(names[i]);
+    col.flux = P.color("--flux");
+    col.steel = P.color("--steel");
+    col.accent2 = P.color("--accent-2");
+    col.sans = P.theme().sans;
+  }
+
+  /* The stage sets the width; the height follows it (setupCanvas pins pixel sizes, so the
+     canvas itself is never measured). */
+  function layout() {
+    var w = Math.max(280, Math.round(stage.clientWidth || 640));
+    var h = Math.round(w < 640 ? Math.min(560, Math.max(380, w * 1.18)) : Math.min(500, Math.max(300, w * 0.42)));
+    cv = P.setupCanvas(canvas, w, h);
+    var narrow = w < 640;
+    var groundY = Math.round(h * (narrow ? 0.9 : 0.86));
+    var lens, house, seis;
+    if (narrow) {
+      lens = { x: 10, y: 10, w: w - 20, h: Math.round(h * 0.5) };
+      house = { x: Math.round(w * 0.24), y: Math.round(h * 0.6), w: Math.round(w * 0.56) };   /* chip sits above the canvas */
+      seis = null;
+    } else {
+      lens = { x: Math.round(w * 0.025), y: 54, w: Math.round(w * 0.5), h: Math.round(h * 0.64) };
+      house = { x: Math.round(w * 0.6), y: Math.round(h * 0.34), w: Math.round(w * 0.32) };
+      seis = { x: Math.round(w * 0.6), y: 54, w: Math.round(w * 0.32), h: Math.round(h * 0.15) };
+    }
+    house.h = groundY - house.y;
+    geo = { w: w, h: h, narrow: narrow, groundY: groundY, lens: lens, house: house, seis: seis };
+  }
+
+  /* ---- schematic ground motion (illustrative, not a record) ------------------------ */
+  function envP(ts) { var u = ts - tP; return u < 0 ? 0 : (1 - Math.exp(-u / 0.05)) * Math.exp(-u / 1.5); }
+  function envS(ts) { var u = ts - tS; return u < 0 ? 0 : (1 - Math.exp(-u / 0.3)) * Math.exp(-u / 2.3); }
+  function accel(ts) {
+    var a = 0.22 * envP(ts) * Math.sin(2 * Math.PI * 7.3 * (ts - tP));
+    var u = ts - tS;
+    if (u >= 0) a += envS(ts) * (Math.sin(2 * Math.PI * 1.6 * u) + 0.35 * Math.sin(2 * Math.PI * 3.1 * u + 1));
+    return a;
+  }
+  function sway(ts) { return envS(ts) * Math.sin(2 * Math.PI * 1.25 * (ts - tS)); }
+  function jolt(ts) { return envP(ts) * Math.sin(2 * Math.PI * 9 * (ts - tP)); }
+
+  /* ---- drawer state at story time ts ------------------------------------------------ */
+  function drawerAt(ts) {
+    if (ts < tProt) return { d: D.travel_m, v: 0, seat: 0, phase: "hover" };
+    var q = prof.sample(ts - tProt);
+    return { d: q.d, v: q.v, seat: q.phase === "done" ? 1 : q.seat, phase: q.phase };
+  }
+
+  function line(ctx, x0, y0, x1, y1) { ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); }
+  function text(ctx, s, x, y, o) {
+    o = o || {};
+    ctx.font = (o.weight || "400") + " " + (o.size || 11) + "px " + col.sans;
+    ctx.fillStyle = o.color || col.muted;
+    ctx.textAlign = o.align || "left";
+    ctx.textBaseline = o.base || "alphabetic";
+    ctx.fillText(s, x, y);
+  }
+
+  function drawGround(ctx, ts) {
+    var g = geo, gy = g.groundY;
+    ctx.fillStyle = P.alpha(col.line, 0.28);
+    ctx.fillRect(0, gy, g.w, g.h - gy);
+    ctx.strokeStyle = col.grid; ctx.lineWidth = 1;
+    for (var k = 1; k <= 3; k++) {
+      var y = gy + ((g.h - gy) * k) / 4;
+      ctx.beginPath();
+      for (var x = 0; x <= g.w; x += 12) {
+        var yy = y + 1.2 * jolt(ts - x / 900) + 0.6 * Math.sin(x / 40 + k);
+        if (x === 0) ctx.moveTo(x, yy); else ctx.lineTo(x, yy);
+      }
+      ctx.stroke();
+    }
+    ctx.strokeStyle = col.axis; ctx.lineWidth = 1.5;
+    line(ctx, 0, gy + 0.5, g.w, gy + 0.5);
+  }
+
+  function frontX(ts, tArrive, lead) {
+    var hx = geo.house.x - 8;
+    var v = (hx + 60) / lead;
+    return hx + (ts - tArrive) * v;
+  }
+
+  function drawWaves(ctx, ts) {
+    var g = geo, gy = g.groundY, top = g.narrow ? g.house.y - 10 : 40;
+    var xp = frontX(ts, tP, 1.2);
+    if (xp > -60 && xp < g.w + 80) {
+      for (var k = 0; k < 6; k++) {
+        ctx.strokeStyle = P.alpha(col.p, 0.85 - k * 0.13); ctx.lineWidth = k === 0 ? 2 : 1;
+        line(ctx, xp - k * 7, gy, xp - k * 7, g.h);
+      }
+      ctx.strokeStyle = P.alpha(col.p, 0.22); ctx.lineWidth = 1; ctx.setLineDash([3, 5]);
+      line(ctx, xp, top, xp, gy);
+      ctx.setLineDash([]);
+      text(ctx, "P-wave", xp + 6, gy + 16, { color: col.ink2, weight: "600" });
+    }
+    var xs = frontX(ts, tS, 1.8);
+    if (xs > -60 && xs < g.w + 80) {
+      ctx.strokeStyle = col.s; ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (var y = gy; y <= g.h; y += 3) {
+        var xx = xs + 6 * Math.sin((y - gy) / 7 - ts * 9);
+        if (y === gy) ctx.moveTo(xx, y); else ctx.lineTo(xx, y);
+      }
+      ctx.stroke();
+      ctx.strokeStyle = P.alpha(col.s, 0.25); ctx.lineWidth = 1; ctx.setLineDash([3, 5]);
+      line(ctx, xs, top, xs, gy);
+      ctx.setLineDash([]);
+      text(ctx, "S-wave", xs + 8, gy + 30, { color: col.ink2, weight: "600" });
+    }
+  }
+
+  /* House with shear sway: an offset that grows with height above the ground. */
+  function drawHouse(ctx, ts, dr) {
+    var H = geo.house, gy = geo.groundY;
+    var sx = sway(ts) * Math.min(14, geo.w * 0.012), jy = jolt(ts) * 1.6;
+    function off(y) { return sx * (0.35 + 0.65 * (gy - y) / Math.max(1, H.h)); }
+    var roofY = H.y, wallTop = H.y + H.h * 0.28;
+    ctx.save();
+    ctx.translate(0, jy);
+    ctx.lineJoin = "round";
+    /* roof and walls */
+    ctx.fillStyle = P.alpha(col.panel, 0.95); ctx.strokeStyle = col.ink2; ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(H.x + off(gy), gy);
+    ctx.lineTo(H.x + off(wallTop), wallTop);
+    ctx.lineTo(H.x - 12 + off(wallTop), wallTop);
+    ctx.lineTo(H.x + H.w / 2 + off(roofY), roofY);
+    ctx.lineTo(H.x + H.w + 12 + off(wallTop), wallTop);
+    ctx.lineTo(H.x + H.w + off(wallTop), wallTop);
+    ctx.lineTo(H.x + H.w + off(gy), gy);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    /* window */
+    var wy = wallTop + (gy - wallTop) * 0.18, wh = (gy - wallTop) * 0.26, wx = H.x + H.w * 0.68;
+    ctx.strokeStyle = col.muted; ctx.lineWidth = 1.2;
+    ctx.strokeRect(wx + off(wy), wy, H.w * 0.18, wh);
+    line(ctx, wx + off(wy) + H.w * 0.09, wy, wx + off(wy + wh) + H.w * 0.09, wy + wh);
+    /* pendant lamp: swings against the sway */
+    var lx = H.x + H.w * 0.42 + off(wallTop), ly = wallTop, ang = -0.5 * sway(ts - 0.18);
+    var len = (gy - wallTop) * 0.26, bx = lx + Math.sin(ang) * len, by = ly + Math.cos(ang) * len;
+    ctx.strokeStyle = col.muted; ctx.lineWidth = 1; line(ctx, lx, ly, bx, by);
+    ctx.fillStyle = P.alpha(col.accent2, 0.85); ctx.beginPath(); ctx.arc(bx, by + 3, 5, 0, Math.PI); ctx.fill();
+    /* floor slab */
+    ctx.fillStyle = col.steel;
+    ctx.fillRect(H.x - 6 + off(gy), gy - 5, H.w + 12, 5);
+    /* kitchen cabinet with a drawer */
+    var cabH = (gy - wallTop) * 0.36, cabW = H.w * 0.34, cx = H.x + H.w * 0.12, cyTop = gy - 5 - cabH;
+    var o2 = off(cyTop);
+    ctx.fillStyle = P.alpha(col.line, 0.5); ctx.strokeStyle = col.ink2; ctx.lineWidth = 1.2;
+    ctx.fillRect(cx + o2, cyTop, cabW, cabH); ctx.strokeRect(cx + o2, cyTop, cabW, cabH);
+    ctx.fillStyle = col.ink2; ctx.fillRect(cx + o2 - 3, cyTop - 4, cabW + 6, 4);
+    var open = (dr.d / D.travel_m) * cabW * 0.5;
+    var dz = dr.seat * 1.2;
+    ctx.fillStyle = P.alpha(col.drawer, 0.25); ctx.strokeStyle = col.drawer; ctx.lineWidth = 1.5;
+    ctx.fillRect(cx + o2 - open + 2, cyTop + 5 + dz, cabW * 0.92, cabH * 0.3);
+    ctx.strokeRect(cx + o2 - open + 2, cyTop + 5 + dz, cabW * 0.92, cabH * 0.3);
+    ctx.fillStyle = col.drawer; ctx.fillRect(cx + o2 - open, cyTop + 3 + dz, 3, cabH * 0.3 + 4);
+    /* structure accelerometer on the slab */
+    var ax = H.x + H.w * 0.86 + off(gy), ay = gy - 12;
+    ctx.fillStyle = col.steel; ctx.fillRect(ax - 6, ay, 12, 7);
+    var picked = ts >= tP, strong = ts >= tS;
+    ctx.fillStyle = strong ? col.s : picked ? col.p : col.good;
+    ctx.beginPath(); ctx.arc(ax, ay - 4, picked && Math.sin(ts * 14) > -0.2 ? 3.4 : 2.4, 0, 2 * Math.PI); ctx.fill();
+    if (!geo.narrow) text(ctx, "accelerometer", ax, ay + 20, { align: "center", size: 10 });
+    ctx.restore();
+    return { x: cx + o2 - open, y: cyTop + 5 + jy, w: cabW, h: cabH * 0.3, sx: sx, jy: jy };
+  }
+
+  /* The magnified rail, carriage and drawer. World x in metres from the lens' left edge. */
+  function drawLens(ctx, ts, dr, spot) {
+    var Lz = geo.lens, pad = 16, g = geo;
+    var span = 1.0, k = (Lz.w - 2 * pad) / span;
+    var faceX = 0.34;
+    var shakeX = spot.sx * 1.6, shakeY = spot.jy * 2.5;
+    /* panel */
+    ctx.fillStyle = P.alpha(col.panel, 0.94); ctx.strokeStyle = col.line; ctx.lineWidth = 1;
+    P.roundRect(ctx, Lz.x, Lz.y, Lz.w, Lz.h, 10); ctx.fill(); ctx.stroke();
+    /* leader lines to the drawer in the house */
+    ctx.strokeStyle = P.alpha(col.muted, 0.55); ctx.setLineDash([3, 4]); ctx.lineWidth = 1;
+    if (g.narrow) {
+      line(ctx, Lz.x + Lz.w * 0.3, Lz.y + Lz.h, spot.x + 2, spot.y);
+      line(ctx, Lz.x + Lz.w * 0.7, Lz.y + Lz.h, spot.x + spot.w, spot.y);
+    } else {
+      line(ctx, Lz.x + Lz.w, Lz.y + Lz.h * 0.3, spot.x + 2, spot.y);
+      line(ctx, Lz.x + Lz.w, Lz.y + Lz.h * 0.85, spot.x + 2, spot.y + spot.h);
+    }
+    ctx.setLineDash([]);
+    ctx.strokeStyle = P.alpha(col.muted, 0.8);
+    ctx.strokeRect(spot.x - 3, spot.y - 4, spot.w + 6, spot.h + 8);
+
+    ctx.save();
+    P.roundRect(ctx, Lz.x + 1, Lz.y + 1, Lz.w - 2, Lz.h - 2, 9); ctx.clip();
+    ctx.translate(Lz.x + pad + shakeX, shakeY);
+    var X = function (m) { return m * k; };
+    var counterY = Lz.y + (g.narrow ? 58 : 44), counterH = 10;
+    var railTop = counterY + counterH + 6, railH = Math.max(10, Lz.h * 0.05), railBot = railTop + railH;
+    var mmPx = Math.max(2.4, Math.min(3.6, Lz.h / 90));              /* gap drawn at mmPx per mm */
+    var gapMm = D.g_star_m * 1000 + dr.seat * (D.g_seat_m - D.g_star_m) * 1000;
+    var magH = Math.max(12, Lz.h * 0.06), plateH = 5;
+    var boxTop0 = railBot + D.g_star_m * 1000 * mmPx + magH + plateH + 4;   /* at the hover gap */
+    var boxH = Math.max(40, Math.min(X(0.24), Lz.y + Lz.h - 40 - boxTop0));   /* ≈ 240 mm deep */
+    var magTop = railBot + gapMm * mmPx;
+    var plateY = magTop + magH;
+    var boxTop = plateY + plateH + 4;
+    var cabBot = boxTop0 + boxH + 6 + (D.g_seat_m - D.g_star_m) * 1000 * mmPx;
+    var open = dr.d;
+    var dx0 = faceX - open;                                           /* drawer front, m */
+    /* cabinet: counter, face, back, bottom */
+    ctx.fillStyle = col.ink2; ctx.fillRect(X(faceX - 0.05), counterY, X(0.75), counterH);
+    ctx.fillStyle = P.alpha(col.line, 0.6);
+    ctx.fillRect(X(faceX) - 2, counterY + counterH, 4, cabBot + 4 - counterY - counterH);
+    ctx.fillRect(X(faceX + 0.64), counterY + counterH, 4, cabBot + 4 - counterY - counterH);
+    ctx.fillRect(X(faceX), cabBot, X(0.64) + 4, 4);
+    /* steel rail with laminations */
+    ctx.fillStyle = col.steel; ctx.fillRect(X(faceX - 0.01), railTop, X(0.63), railH);
+    ctx.strokeStyle = P.alpha(col.deep, 0.35); ctx.lineWidth = 1;
+    for (var lx = X(faceX - 0.01) + 6; lx < X(faceX + 0.62); lx += 7) line(ctx, lx, railTop + 2, lx, railBot - 2);
+    /* captive seat at the rear */
+    var seatTop = plateY + plateH + (D.g_seat_m - D.g_star_m) * 1000 * mmPx * (1 - dr.seat) + 0.5;
+    ctx.fillStyle = col.muted;
+    ctx.beginPath();
+    ctx.moveTo(X(faceX + 0.585), seatTop); ctx.lineTo(X(faceX + 0.62), seatTop);
+    ctx.lineTo(X(faceX + 0.62), seatTop + 9); ctx.lineTo(X(faceX + 0.57), seatTop + 9); ctx.closePath(); ctx.fill();
+    /* carriage plate and magnets (rear half of the drawer: ≤ 50 % extension stays under the rail) */
+    var mags = [0.3, 0.52], mw = 0.075;
+    ctx.fillStyle = P.alpha(col.drawer, 0.55);
+    ctx.fillRect(X(dx0 + 0.26), plateY, X(0.34), plateH);
+    var phase = ts * (dr.v > 0.01 ? 7 : 3.2);
+    for (var m = 0; m < mags.length; m++) {
+      var mx = X(dx0 + mags[m] + mw / 2), half = X(mw) / 2;
+      /* flux in the gap: a pulsing glow under the pole faces (the air gap carries the field) */
+      var pulse = 0.5 + 0.5 * Math.sin(phase * 1.3 + m);
+      var glow = ctx.createLinearGradient(0, railBot, 0, magTop);
+      glow.addColorStop(0, P.alpha(col.flux, 0.1 + 0.15 * pulse));
+      glow.addColorStop(0.5, P.alpha(col.flux, 0.35 + 0.3 * pulse));
+      glow.addColorStop(1, P.alpha(col.flux, 0.1 + 0.15 * pulse));
+      ctx.fillStyle = glow;
+      ctx.fillRect(mx - half * 1.05, railBot, half * 2.1, magTop - railBot);
+      /* flux loops: pole → gap → rail → gap → pole, shimmering along the path */
+      ctx.save();
+      ctx.shadowColor = col.flux; ctx.shadowBlur = 6;
+      for (var lv = 0; lv < 3; lv++) {
+        var ry = (magTop - (railTop + railH * 0.3)) / 2 + lv * 1.8;
+        var cy = magTop - ry;
+        ctx.strokeStyle = P.alpha(col.flux, 0.45 + 0.4 * (0.5 + 0.5 * Math.sin(phase + lv * 1.7 + m)));
+        ctx.lineWidth = 1.4; ctx.setLineDash([5, 4]); ctx.lineDashOffset = -phase * 6 - lv * 3;
+        ctx.beginPath(); ctx.ellipse(mx, cy, half * (0.5 + 0.28 * lv), ry, 0, 0, 2 * Math.PI); ctx.stroke();
+      }
+      ctx.restore();
+      ctx.setLineDash([]); ctx.lineDashOffset = 0;
+      ctx.fillStyle = col.steel; ctx.fillRect(mx - half, magTop, 2 * half, magH);
+      ctx.fillStyle = col.accent2; ctx.fillRect(mx - half * 0.25, magTop + 2, half * 0.5, magH - 4);
+      ctx.strokeStyle = P.alpha(col.deep, 0.5);
+      for (var cwi = 0; cwi < 3; cwi++) {
+        line(ctx, mx - half * 0.9 + cwi * 3, magTop + 3, mx - half * 0.9 + cwi * 3, magTop + magH - 3);
+        line(ctx, mx + half * 0.9 - cwi * 3, magTop + 3, mx + half * 0.9 - cwi * 3, magTop + magH - 3);
+      }
+    }
+    /* drawer box, front and contents */
+    ctx.fillStyle = P.alpha(col.drawer, 0.1); ctx.strokeStyle = col.drawer; ctx.lineWidth = 1.6;
+    ctx.fillRect(X(dx0), boxTop, X(0.6), boxH); ctx.strokeRect(X(dx0), boxTop, X(0.6), boxH);
+    ctx.fillStyle = col.drawer; ctx.fillRect(X(dx0) - 6, boxTop - 8, 7, boxH + 14);
+    ctx.strokeStyle = col.ink2; ctx.lineWidth = 1.2;
+    for (var gl = 0; gl < 2; gl++) {
+      var gx = X(dx0 + 0.14 + gl * 0.16), gb = boxTop + boxH - 3, gh = Math.min(34, boxH * 0.62);
+      ctx.beginPath();
+      ctx.moveTo(gx - 6, gb); ctx.lineTo(gx + 6, gb); ctx.moveTo(gx, gb); ctx.lineTo(gx, gb - gh * 0.45);
+      ctx.moveTo(gx - 7, gb - gh); ctx.quadraticCurveTo(gx - 7, gb - gh * 0.45, gx, gb - gh * 0.45);
+      ctx.quadraticCurveTo(gx + 7, gb - gh * 0.45, gx + 7, gb - gh);
+      ctx.stroke();
+    }
+    /* motion arrow and distance to go */
+    if (dr.v > 0.002) {
+      var ay = boxTop + boxH * 0.42, alen = Math.min(60, 10 + dr.v * 220);
+      ctx.strokeStyle = col.ink; ctx.fillStyle = col.ink; ctx.lineWidth = 1.6;
+      var ax0 = X(dx0 + 0.3) - alen / 2, ax1 = ax0 + alen;
+      line(ctx, ax0, ay, ax1, ay);
+      ctx.beginPath(); ctx.moveTo(ax1 + 6, ay); ctx.lineTo(ax1 - 2, ay - 4); ctx.lineTo(ax1 - 2, ay + 4); ctx.closePath(); ctx.fill();
+      text(ctx, fmt(dr.v, 2) + " m/s", ax0 + alen / 2, ay - 8, { align: "center", color: col.ink2, size: 11, weight: "600" });
+    }
+    if (open > 0.0005) {
+      var dy = cabBot + 16;
+      ctx.strokeStyle = col.ink2; ctx.lineWidth = 1;
+      line(ctx, X(dx0), dy, X(faceX), dy);
+      line(ctx, X(dx0), dy - 4, X(dx0), dy + 4); line(ctx, X(faceX), dy - 4, X(faceX), dy + 4);
+      text(ctx, "d = " + fmtSI(open, "m", 3), X(faceX) + 8, dy + 4, { color: col.ink2, size: 11, weight: "600" });
+    }
+    /* labels */
+    var small = g.narrow ? 10 : 11;
+    text(ctx, "steel rail", X(faceX - 0.01) - 6, railTop + railH / 2, { align: "right", base: "middle", size: small });
+    text(ctx, "cabinet face", X(faceX), counterY - 5, { align: "center", size: small });
+    if (!g.narrow || Lz.w > 330) text(ctx, "PM + coil", X(dx0 + mags[1] + mw) + 6, magTop + magH - 2, { size: small });
+    text(ctx, "seat", X(faceX + 0.6), seatTop + 21, { align: "center", size: small });
+    ctx.restore();
+    text(ctx, "Drawer rail, magnified · gap drawn ×" + fmt((mmPx * 1000) / k, 2), Lz.x + 12, Lz.y + 18, { color: col.ink2, size: 11.5, weight: "600" });
+    var gapTxt = dr.seat > 0.99 ? "seated at " + fmtSI(D.g_seat_m, "m", 2) : "gap " + fmtSI(D.g_star_m + dr.seat * (D.g_seat_m - D.g_star_m), "m", 2) + " · coil current → 0";
+    if (geo.narrow) text(ctx, gapTxt, Lz.x + 12, Lz.y + 33, { size: 10.5 });
+    else text(ctx, gapTxt, Lz.x + Lz.w - 12, Lz.y + 18, { align: "right", size: 11 });
+  }
+
+  function drawSeismogram(ctx, ts) {
+    var S = geo.seis;
+    if (!S) return;
+    ctx.fillStyle = P.alpha(col.panel, 0.9); ctx.strokeStyle = col.line; ctx.lineWidth = 1;
+    P.roundRect(ctx, S.x, S.y, S.w, S.h, 8); ctx.fill(); ctx.stroke();
+    var midY = S.y + S.h * 0.58, amp = S.h * 0.3, win = 8;
+    ctx.strokeStyle = col.grid; line(ctx, S.x + 8, midY, S.x + S.w - 8, midY);
+    ctx.lineWidth = 1.4;
+    var n = Math.floor(S.w - 16);
+    for (var pass = 0; pass < 2; pass++) {
+      ctx.strokeStyle = pass === 0 ? col.p : col.s;
+      ctx.beginPath();
+      var pen = false;
+      for (var i = 0; i <= n; i++) {
+        var t = ts - win + (win * i) / n;
+        var isS = t >= tS;
+        if ((pass === 1) !== isS || t < T0) { pen = false; continue; }
+        var y = midY - Math.max(-1.25, Math.min(1.25, accel(t))) * amp;
+        var x = S.x + 8 + i;
+        if (!pen) { ctx.moveTo(x, y); pen = true; } else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+    text(ctx, "floor acceleration · illustrative", S.x + 10, S.y + 15, { size: 10.5 });
+  }
+
+  function drawFrame(ts, fade) {
+    if (!cv) return;
+    var ctx = cv.ctx;
+    ctx.setTransform(cv.dpr, 0, 0, cv.dpr, 0, 0);
+    ctx.clearRect(0, 0, geo.w, geo.h);
+    ctx.fillStyle = col.deep; ctx.fillRect(0, 0, geo.w, geo.h);
+    var dr = drawerAt(ts);
+    drawGround(ctx, ts);
+    var spot = drawHouse(ctx, ts, dr);
+    drawWaves(ctx, ts);
+    drawSeismogram(ctx, ts);
+    drawLens(ctx, ts, dr, spot);
+    if (fade > 0) { ctx.fillStyle = P.alpha(col.deep, Math.min(1, fade)); ctx.fillRect(0, 0, geo.w, geo.h); }
+    current = ts;
+    updateText(ts);
+  }
+
+  function updateText(ts) {
+    var ph = 0;
+    while (ph < PHASES.length - 1 && ts >= PHASES[ph].until) ph++;
+    if (ph !== lastPhase) {
+      lastPhase = ph;
+      if (chip) chip.textContent = PHASES[ph].text;
+      for (var i = 0; i < phaseItems.length; i++) {
+        if (+phaseItems[i].getAttribute("data-phase") === PHASES[ph].item) phaseItems[i].setAttribute("aria-current", "step");
+        else phaseItems[i].removeAttribute("aria-current");
+      }
+    }
+    if (clock) clock.textContent = "t = " + (ts < 0 ? "−" : "") + Math.abs(ts).toFixed(1) + " s after origin · M7 at 40 km";
+    if (semi) {
+      /* progressive while playing; the whole curve in the static storyboard */
+      var rev = (loop && loop.running()) || pinned ? Math.max(0, ts - tProt) : Infinity;
+      if (rev === Infinity ? lastReveal !== Infinity : Math.abs(rev - lastReveal) > 1 / 40 || (rev === 0) !== (lastReveal === 0)) {
+        lastReveal = rev;
+        semi.update({ reveal: rev === Infinity ? undefined : rev > 0 ? rev : 1e-6 });
+      }
+    }
+  }
+
+  function still() {
+    setPlaying(false);
+    drawFrame(STILL_T, 0);
+  }
+
+  loop = P.loop(function (dt, t) {
+    var u = t % LOOP;
+    if (u < T1 - T0) drawFrame(T0 + u, 0);
+    else drawFrame(T1, (u - (T1 - T0)) / FADE);
+  }, { el: stage, still: still });
+
+  function setPlaying(on) {
+    if (!playBtn) return;
+    playBtn.hidden = false;
+    playBtn.textContent = on ? "Pause" : "Play animation";
+    playBtn.setAttribute("aria-pressed", on ? "true" : "false");
+    if (restartBtn) restartBtn.hidden = !on;
+  }
+
+  if (playBtn) {
+    playBtn.addEventListener("click", function () {
+      if (loop.running()) { loop.stop(); setPlaying(false); }
+      else { loop.start(true); setPlaying(loop.running()); }
+    });
+  }
+  if (restartBtn) {
+    restartBtn.addEventListener("click", function () { loop.reset(0); lastReveal = -1; drawFrame(T0, 0); });
+  }
+
+  function relayout() {
+    layout();
+    drawFrame(current, 0);
+  }
+  colours();
+  layout();
+  P.onTheme(function () { colours(); drawFrame(current, 0); });
+  if (window.ResizeObserver) {
+    var lastW = 0;
+    new ResizeObserver(function () {
+      var w = stage.clientWidth;
+      if (Math.abs(w - lastW) >= 1) { lastW = w; relayout(); }
+    }).observe(stage);
+  } else {
+    window.addEventListener("resize", relayout);
+  }
+
+  /* #t=<seconds after origin> opens the hero paused at that moment (shareable, and handy
+     for screenshots); otherwise it plays unless reduced motion is requested. */
+  var m = /^#t=(\d+(?:\.\d+)?)$/.exec(window.location.hash || "");
+  if (m) {
+    pinned = true;
+    setPlaying(false);
+    drawFrame(Math.min(Math.max(parseFloat(m[1]), T0), T1), 0);
+  } else if (loop.start()) setPlaying(true);
+  else still();
+})();
+</script>
+</body>
+</html>

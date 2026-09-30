@@ -1,0 +1,6 @@
+# Firmware toolchain: rustup stable with the Cortex-M4F target (CLAUDE.md toolchain
+# notes). rust-lld ships with the toolchain and links the image.
+[toolchain]
+channel = "stable"
+targets = ["thumbv7em-none-eabihf"]
+profile = "minimal"

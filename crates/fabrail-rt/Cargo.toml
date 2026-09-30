@@ -1,0 +1,27 @@
+[package]
+name = "fabrail-rt"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.89"
+license = "MIT"
+description = "fabrail runtime: LET mailboxes, rate groups, executive, safety arbitration and the golden selftest hash (SIL == firmware)"
+
+[lib]
+doctest = false
+
+# no_std: every dependency is spelled out (no workspace inheritance).
+[dependencies]
+fabrail-types = { path = "../fabrail-types" }
+fabrail-params = { path = "../fabrail-params" }
+fabrail-hal = { path = "../fabrail-hal" }
+fabrail-core = { path = "../fabrail-core" }
+fabrail-safety = { path = "../fabrail-safety" }
+
+[dev-dependencies]
+proptest = "1.10"
+
+[features]
+# Enabled ONLY by fabrail-sim. Perturbs core outputs before the monitor sees them.
+# Must never appear in firmware/Cargo.toml or its lockfile feature set; the golden
+# selftest hash must be identical with and without it.
+fault-injection = []

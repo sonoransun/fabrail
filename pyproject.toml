@@ -1,0 +1,50 @@
+[build-system]
+requires = ["maturin>=1.7,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "fabrail"
+version = "0.1.0"
+description = "Magnetically suspended, magnetically propelled rails for cabinetry, sliding doors and movable infrastructure: simulator, control stack, seismic early warning and firmware target"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "fabrail authors" }]
+keywords = ["maglev", "magnetic-levitation", "haptics", "earthquake-early-warning", "control", "simulation"]
+dependencies = [
+    "numpy>=2.0",
+    "scipy>=1.10",
+    "matplotlib>=3.7",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "hypothesis>=6",
+]
+# Optional magpylib cross-check of the dipole stray-field model.
+field = [
+    "magpylib>=5.2",
+]
+
+[project.scripts]
+fabrail = "fabrail.__main__:main"
+
+[tool.maturin]
+# Mixed Rust/Python project: pure Python lives under python/, the compiled core is the
+# extension submodule `fabrail._native` built from crates/fabrail-py.
+manifest-path = "crates/fabrail-py/Cargo.toml"
+python-source = "python"
+module-name = "fabrail._native"
+features = ["extension-module"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-m 'not slow' --strict-markers"
+markers = [
+    "slow: long-running tests, excluded by default (run with -m slow)",
+    "node: needs node (site formulas, wasm selftest)",
+    "requires_data: needs externally fetched data under data/",
+    "requires_cargo: needs a cargo toolchain",
+    "req(*ids): FAB requirement IDs verified",
+]

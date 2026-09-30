@@ -1,0 +1,1415 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fabrail:schema:scene-1",
+  "title": "fabrail building scene v1 (fabrail.scene/1)",
+  "description": "A multi-device building scene for the house choreographer (plan §4b): a host building (fixed_base | fps_isolated | haven_f | tower_sentinel), one ground-motion record, a device registry and the synthetic alert inputs. Devices run on the steppable fabrail_sim::Session in 200-tick chunks at sync_hz (rayon across devices, bus power summed in registry order); coupling is one-way (building to devices). fabrail-exo-sim's SceneSpec mirrors this schema. Rules checked by the loader, not by this schema: unique device ids and floor levels; every device level names a floor; operator/record device ids exist; series.ground iff ground.series; seat_and_latch needs design.landing.seismic_latch with x_retention_n >= m_rated * a_design; egress devices never lock (no parking_lock override either).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "name",
+    "seed",
+    "duration_s",
+    "variant",
+    "building",
+    "ground",
+    "devices",
+    "alert"
+  ],
+  "properties": {
+    "schema": {
+      "const": "fabrail.scene/1"
+    },
+    "name": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]{1,64}$",
+      "description": "Scene name."
+    },
+    "doc": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 4096,
+      "description": "Free-text description (label runs 'simulated replay')."
+    },
+    "seed": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615,
+      "description": "Master seed: SeedSequence(seed) synthesises the ground motion and spawn(n)[i] seeds device i."
+    },
+    "duration_s": {
+      "type": "number",
+      "description": "Scene length, s.",
+      "exclusiveMinimum": 0,
+      "maximum": 3600
+    },
+    "sync_hz": {
+      "enum": [
+        50,
+        100,
+        200,
+        1000
+      ],
+      "default": 100,
+      "description": "Device synchronisation rate, Hz (100 Hz = 200-tick chunks)."
+    },
+    "variant": {
+      "enum": [
+        "warned",
+        "near_field",
+        "spoofed_alert",
+        "quiet",
+        "custom"
+      ],
+      "description": "Story variant: warned (M7.2 at 60 km, network alert + local P), near_field (15 km, blind zone), spoofed_alert (false alert, bounded regret), quiet (no shaking; restore/pinch tests), custom."
+    },
+    "building": {
+      "$ref": "#/$defs/building"
+    },
+    "ground": {
+      "$ref": "#/$defs/ground"
+    },
+    "series": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ground": {
+          "$ref": "#/$defs/ground_series"
+        }
+      },
+      "default": {},
+      "description": "Series declarations; the bytes travel separately (name -> channel-major LE f64)."
+    },
+    "devices": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": {
+        "$ref": "#/$defs/device"
+      },
+      "description": "Device registry, in stepping order."
+    },
+    "alert": {
+      "$ref": "#/$defs/alert"
+    },
+    "power": {
+      "$ref": "#/$defs/power"
+    },
+    "choreo": {
+      "$ref": "#/$defs/choreo"
+    },
+    "operator": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/operator_action"
+      },
+      "default": [],
+      "description": "Timed operator actions."
+    },
+    "contents_mu_sweep_frac": {
+      "type": "number",
+      "description": "Contents friction sweep: slip is also reported at mu*(1 -/+ frac) ([UNCERTAIN] mu values).",
+      "minimum": 0,
+      "exclusiveMaximum": 1,
+      "default": 0.3
+    },
+    "record": {
+      "$ref": "#/$defs/record"
+    }
+  },
+  "$defs": {
+    "floor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "level",
+        "name",
+        "z_m"
+      ],
+      "description": "One floor of the host building. Device z/h = z_m / building height (max z_m unless height_m is given).",
+      "properties": {
+        "level": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 200,
+          "description": "Floor level (0 = ground); unique within the building."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "description": "Floor label."
+        },
+        "z_m": {
+          "type": "number",
+          "description": "Height of the floor above the ground (or above the isolation plane), m.",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "mass_kg": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Floor mass, kg (null: uniform distribution of the model mass).",
+          "exclusiveMinimum": 0
+        },
+        "k_n_per_m": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Storey shear stiffness below this floor, N/m (null: scaled so the fixed-base fundamental period equals period_s).",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "building_fixed_base": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Fixed-base shear building (linear, one-way coupling to devices). Badge: simplified.",
+      "required": [
+        "config",
+        "floors",
+        "period_s"
+      ],
+      "properties": {
+        "config": {
+          "const": "fixed_base"
+        },
+        "floors": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 60,
+          "items": {
+            "$ref": "#/$defs/floor"
+          },
+          "description": "Floors, bottom to top."
+        },
+        "period_s": {
+          "type": "number",
+          "description": "Fundamental period of the (fixed-base) superstructure, s.",
+          "exclusiveMinimum": 0,
+          "maximum": 20
+        },
+        "zeta": {
+          "type": "number",
+          "description": "Modal damping ratio of the superstructure (Rayleigh, modes 1 and 2).",
+          "minimum": 0,
+          "maximum": 0.3,
+          "default": 0.05
+        },
+        "height_m": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Building height h for z/h, m (null: the top floor's z_m).",
+          "exclusiveMinimum": 0
+        },
+        "topo_factor": {
+          "type": "number",
+          "description": "Topographic amplification of the ground motion (stated in every run).",
+          "minimum": 1,
+          "maximum": 3,
+          "default": 1.0
+        }
+      }
+    },
+    "building_fps_isolated": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Conventionally isolated building: friction pendulum / lead-rubber bearing as a linear-equivalent isolator (simplified). The villa default comparison is iso_period_s = 3 s.",
+      "required": [
+        "config",
+        "floors",
+        "period_s",
+        "iso_period_s",
+        "mu"
+      ],
+      "properties": {
+        "config": {
+          "const": "fps_isolated"
+        },
+        "floors": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 60,
+          "items": {
+            "$ref": "#/$defs/floor"
+          },
+          "description": "Floors, bottom to top."
+        },
+        "period_s": {
+          "type": "number",
+          "description": "Fundamental period of the (fixed-base) superstructure, s.",
+          "exclusiveMinimum": 0,
+          "maximum": 20
+        },
+        "zeta": {
+          "type": "number",
+          "description": "Modal damping ratio of the superstructure (Rayleigh, modes 1 and 2).",
+          "minimum": 0,
+          "maximum": 0.3,
+          "default": 0.05
+        },
+        "height_m": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Building height h for z/h, m (null: the top floor's z_m).",
+          "exclusiveMinimum": 0
+        },
+        "topo_factor": {
+          "type": "number",
+          "description": "Topographic amplification of the ground motion (stated in every run).",
+          "minimum": 1,
+          "maximum": 3,
+          "default": 1.0
+        },
+        "iso_period_s": {
+          "type": "number",
+          "description": "Isolation period T = 2*pi*sqrt(R/g) of the isolator, s.",
+          "exclusiveMinimum": 0,
+          "maximum": 10
+        },
+        "mu": {
+          "type": "number",
+          "description": "Isolator sliding friction coefficient.",
+          "exclusiveMinimum": 0,
+          "maximum": 0.3
+        },
+        "iso_stroke_m": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Isolator displacement capacity (moat), m.",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "building_haven_f": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "HAVEN-F reduced platform under the building (research tier, optional): always levitated, passive vertical support, horizontal isolation at iso_period_s (reduced model of the exotic HAVEN-R/F class).",
+      "required": [
+        "config",
+        "floors",
+        "period_s"
+      ],
+      "properties": {
+        "config": {
+          "const": "haven_f"
+        },
+        "floors": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 60,
+          "items": {
+            "$ref": "#/$defs/floor"
+          },
+          "description": "Floors, bottom to top."
+        },
+        "period_s": {
+          "type": "number",
+          "description": "Fundamental period of the (fixed-base) superstructure, s.",
+          "exclusiveMinimum": 0,
+          "maximum": 20
+        },
+        "zeta": {
+          "type": "number",
+          "description": "Modal damping ratio of the superstructure (Rayleigh, modes 1 and 2).",
+          "minimum": 0,
+          "maximum": 0.3,
+          "default": 0.05
+        },
+        "height_m": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Building height h for z/h, m (null: the top floor's z_m).",
+          "exclusiveMinimum": 0
+        },
+        "topo_factor": {
+          "type": "number",
+          "description": "Topographic amplification of the ground motion (stated in every run).",
+          "minimum": 1,
+          "maximum": 3,
+          "default": 1.0
+        },
+        "iso_period_s": {
+          "type": "number",
+          "description": "Horizontal isolation period, s (HAVEN-R: 6 s).",
+          "exclusiveMinimum": 0,
+          "maximum": 20,
+          "default": 6.0
+        },
+        "iso_zeta": {
+          "type": "number",
+          "description": "Equivalent damping ratio of the platform (eddy damper / skyhook).",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 0.3
+        },
+        "stroke_m": {
+          "type": "number",
+          "description": "Platform stroke, m (HAVEN-R: S_D at MCE, 0.9 m).",
+          "exclusiveMinimum": 0,
+          "maximum": 5,
+          "default": 0.9
+        },
+        "control": {
+          "enum": [
+            "passive",
+            "skyhook"
+          ],
+          "description": "Platform control: passive or skyhook.",
+          "default": "passive"
+        }
+      }
+    },
+    "building_tower_sentinel": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Supertall tower with a SENTINEL hybrid mass damper (the penthouse variant; tower period about 7 s). Seismically the HMD adds little (about 0.7 % damping at design level; mass dampers are mainly wind devices).",
+      "required": [
+        "config",
+        "floors",
+        "period_s"
+      ],
+      "properties": {
+        "config": {
+          "const": "tower_sentinel"
+        },
+        "floors": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 60,
+          "items": {
+            "$ref": "#/$defs/floor"
+          },
+          "description": "Floors, bottom to top."
+        },
+        "period_s": {
+          "type": "number",
+          "description": "Fundamental period of the (fixed-base) superstructure, s.",
+          "exclusiveMinimum": 0,
+          "maximum": 20
+        },
+        "zeta": {
+          "type": "number",
+          "description": "Modal damping ratio of the superstructure (Rayleigh, modes 1 and 2).",
+          "minimum": 0,
+          "maximum": 0.3,
+          "default": 0.05
+        },
+        "height_m": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Building height h for z/h, m (null: the top floor's z_m).",
+          "exclusiveMinimum": 0
+        },
+        "topo_factor": {
+          "type": "number",
+          "description": "Topographic amplification of the ground motion (stated in every run).",
+          "minimum": 1,
+          "maximum": 3,
+          "default": 1.0
+        },
+        "zeta_s": {
+          "type": "number",
+          "description": "Structural damping ratio of the tower's first mode (normalised to omega_s).",
+          "minimum": 0,
+          "maximum": 0.2,
+          "default": 0.01
+        },
+        "hmd_mass_ratio": {
+          "type": "number",
+          "description": "HMD mass ratio mu = m_d / M_modal.",
+          "exclusiveMinimum": 0,
+          "maximum": 0.1,
+          "default": 0.01
+        },
+        "hmd_mode": {
+          "enum": [
+            "hmd_active",
+            "seismic_passive",
+            "dvf_only",
+            "passive_eddy",
+            "landed_fps"
+          ],
+          "description": "SENTINEL mode ladder state at the start of the run.",
+          "default": "hmd_active"
+        }
+      }
+    },
+    "building": {
+      "description": "Host building, selected by 'config'.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/building_fixed_base"
+        },
+        {
+          "$ref": "#/$defs/building_fps_isolated"
+        },
+        {
+          "$ref": "#/$defs/building_haven_f"
+        },
+        {
+          "$ref": "#/$defs/building_tower_sentinel"
+        }
+      ]
+    },
+    "ground": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source"
+      ],
+      "description": "Ground motion and its provenance. Floor motion at every device comes from this one record run through the building model (one-way coupling). Every run states the percentile, the topographic factor and each device's z/h.",
+      "properties": {
+        "source": {
+          "enum": [
+            "boore_ps",
+            "record",
+            "none"
+          ],
+          "description": "boore_ps: synthesised by fabrail.pwave.boore_ps (P scaled so Pd follows Wu-Zhao at the hypocentral distance); record: a loaded accelerogram; none: no shaking (quiet/spoofed variants)."
+        },
+        "series": {
+          "enum": [
+            "series:ground",
+            null
+          ],
+          "description": "'series:ground' (required unless source is 'none'): the bytes of series.ground."
+        },
+        "magnitude": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Moment magnitude.",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "r_epi_km": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Epicentral distance, km.",
+          "minimum": 0,
+          "maximum": 20000
+        },
+        "depth_km": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Hypocentral depth, km.",
+          "minimum": 0,
+          "maximum": 700
+        },
+        "origin_t_s": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Origin time in scene time (may be negative), s."
+        },
+        "t_p_s": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "P arrival at the site in scene time (reported), s."
+        },
+        "t_s_s": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "S arrival at the site in scene time (reported), s."
+        },
+        "percentile": {
+          "type": "number",
+          "description": "Ground-motion percentile of the synthesis (stated in every run).",
+          "exclusiveMinimum": 0,
+          "exclusiveMaximum": 100,
+          "default": 50
+        },
+        "kappa_s": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Site kappa of the synthesis, s (default 0.04).",
+          "minimum": 0,
+          "maximum": 0.2
+        },
+        "record_name": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 128,
+          "description": "Accelerogram name for source 'record'."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "source": {
+                "enum": [
+                  "boore_ps",
+                  "record"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "series"
+            ],
+            "properties": {
+              "series": {
+                "const": "series:ground"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "source": {
+                "const": "boore_ps"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "magnitude",
+              "r_epi_km",
+              "depth_km",
+              "origin_t_s"
+            ]
+          }
+        }
+      ]
+    },
+    "ground_series": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "axis",
+        "fs_hz",
+        "channels"
+      ],
+      "description": "Ground acceleration at the base, m/s^2, building frame (x, y horizontal, z up). Bytes: channel-major little-endian f64 (as fabrail.scenario/1 series), >= 2 samples per channel; reads 0 outside its span.",
+      "properties": {
+        "axis": {
+          "const": "time"
+        },
+        "fs_hz": {
+          "type": "number",
+          "description": "Sample rate, Hz.",
+          "exclusiveMinimum": 0
+        },
+        "t0_s": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Scene time of sample 0 (default 0), s."
+        },
+        "channels": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "ax",
+              "ay",
+              "az"
+            ]
+          }
+        }
+      }
+    },
+    "contents_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "description": "Sliding-block contents on a device (scene/contents.rs): slip when |a_h| > mu_s*(g + a_z) (vector friction cone, a_h = (drawer a_x, floor a_y) rotated by heading_deg); stick-slip via the elasto-plastic bristle model; a rocking flag when |a_h| > g*b/h. Toppling is not modelled; the only allowed wording is 'no Coulomb slip event in the sliding-block model'.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "glassware",
+            "porcelain",
+            "lined",
+            "stemware",
+            "custom"
+          ],
+          "description": "Item class; defaults [UNCERTAIN, swept]: glassware mu_s 0.35, porcelain 0.4, lined 0.8, stemware 0.35 with b/h 0.35."
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 64,
+          "description": "Label."
+        },
+        "mu_s": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Static friction coefficient (null: the kind default; required for 'custom').",
+          "exclusiveMinimum": 0,
+          "maximum": 2
+        },
+        "mu_k": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Kinetic friction coefficient (null: 0.8*mu_s).",
+          "exclusiveMinimum": 0,
+          "maximum": 2
+        },
+        "b_over_h": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Base half-width over CoM height for the rocking flag (stemware 0.3-0.4; null: not checked).",
+          "exclusiveMinimum": 0,
+          "maximum": 5
+        },
+        "mass_kg": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Item mass, kg (null: 0.5 kg).",
+          "exclusiveMinimum": 0,
+          "maximum": 100
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "default": 1,
+          "description": "Number of identical items."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "custom"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "mu_s"
+            ],
+            "properties": {
+              "mu_s": {
+                "type": "number"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "device_command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "t_s",
+        "cmd"
+      ],
+      "description": "A user/owner command to one device at scene time t_s (e.g. a drawer already gliding when the alert arrives). Alert-initiated motion never reverses a user-initiated motion.",
+      "properties": {
+        "t_s": {
+          "type": "number",
+          "description": "Scene time, s.",
+          "minimum": 0
+        },
+        "cmd": {
+          "enum": [
+            "open",
+            "close",
+            "go_to",
+            "stop",
+            "lift",
+            "land"
+          ],
+          "description": "Command."
+        },
+        "x_m": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Target for 'go_to' (required there), m."
+        },
+        "source": {
+          "enum": [
+            "local",
+            "remote"
+          ],
+          "description": "Command origin: local (at the device) or remote (app/network).",
+          "default": "local"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "cmd": {
+                "const": "go_to"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "x_m"
+            ],
+            "properties": {
+              "x_m": {
+                "type": "number"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "x_m": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "initial_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Device state at t = 0 (as fabrail.scenario/1 'initial'; null fields resolve from the class rest state).",
+      "properties": {
+        "lev": {
+          "enum": [
+            "seated",
+            "landed",
+            "levitated",
+            null
+          ],
+          "description": "Vertical rest condition (null: class rest state)."
+        },
+        "x_m": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Travel position (absolute rail coordinate), m (null: closed stop)."
+        },
+        "payload_kg": {
+          "type": "number",
+          "description": "Payload at t = 0, kg.",
+          "minimum": -100000.0,
+          "maximum": 100000.0,
+          "default": 0
+        },
+        "locked": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Parking lock engaged (null: by rest policy)."
+        }
+      }
+    },
+    "device": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "class",
+        "level",
+        "fidelity"
+      ],
+      "description": "One device of the registry. Devices are stepped in registry (array) order; per-device seeds come from SeedSequence(seed).spawn(n)[i]. Ids must be unique and levels must name a declared floor (checked by the scene loader).",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,31}$",
+          "description": "Unique device id."
+        },
+        "label": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 64,
+          "description": "Display label."
+        },
+        "class": {
+          "enum": [
+            "drawer",
+            "door",
+            "wall",
+            "heavy",
+            "haven_r"
+          ],
+          "description": "Device class: a core rail class, or haven_r (exotic HAVEN-R art plinth, research tier)."
+        },
+        "preset": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-z][a-z0-9_]{0,31}$",
+          "description": "Named derived preset resolved by fabrail.presets (e.g. 'cabinet_slider': an 8 kg sliding cabinet door derived from DRAWER); null = the class preset."
+        },
+        "overrides": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^(design|control|safety)(\\.[a-z0-9_]+)+$"
+          },
+          "additionalProperties": {
+            "type": [
+              "number",
+              "boolean",
+              "string"
+            ]
+          },
+          "default": {},
+          "description": "Parameter overrides by dotted path (Params.with_overrides), applied after the preset; re-validated."
+        },
+        "level": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 200,
+          "description": "Floor level carrying the device."
+        },
+        "room": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 64,
+          "description": "Room label."
+        },
+        "position_m": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "number"
+          },
+          "description": "Plan position (x, y) of the device in the floor plan, m (display only)."
+        },
+        "heading_deg": {
+          "type": "number",
+          "description": "Rotation of the device travel axis (+x opens) from the building x axis, deg.",
+          "minimum": -360,
+          "maximum": 360,
+          "default": 0
+        },
+        "egress": {
+          "enum": [
+            "none",
+            "non_rated",
+            "fire_rated"
+          ],
+          "description": "Egress role: devices on a means of egress never lock (land_and_lock and seat_and_latch are rejected) and use stop_and_land.",
+          "default": "none"
+        },
+        "fidelity": {
+          "enum": [
+            "carriage6",
+            "travel1d",
+            "platform3dof"
+          ],
+          "description": "Plant tier: carriage6 (hero devices; SIL == firmware claimed only for these, voltage coil mode), travel1d (the rest; quick runs use travel1d everywhere), platform3dof (haven_r only)."
+        },
+        "coil": {
+          "enum": [
+            "lag",
+            "voltage"
+          ],
+          "description": "Coil mode (carriage6 only; the device scenario's single source).",
+          "default": "voltage"
+        },
+        "hero": {
+          "type": "boolean",
+          "default": false,
+          "description": "Hero device: recorded at full rate, terminus criteria FAB-HAP-013..016 asserted (carriage6 only)."
+        },
+        "policy": {
+          "enum": [
+            "auto",
+            "smooth_ride_through",
+            "seat_and_hold",
+            "seat_and_latch",
+            "stop_and_land",
+            "land_and_lock",
+            "ride_through",
+            "complete_close",
+            "close_after_shaking"
+          ],
+          "description": "Choreographer policy override (auto: by class, egress and admission). smooth_ride_through (research tier) only for drawers already open by at least s_min; seat_and_latch only with landing.seismic_latch fitted; stop_and_land for egress doors (never lock, ASC released after stop).",
+          "default": "auto"
+        },
+        "contents": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/contents_item"
+          },
+          "default": [],
+          "description": "Contents on the device."
+        },
+        "initial_state": {
+          "$ref": "#/$defs/initial_state"
+        },
+        "commands": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/device_command"
+          },
+          "default": [],
+          "description": "Timed user/owner commands to this device."
+        },
+        "noise_seed": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 18446744073709551615,
+          "description": "Rust noise seed of this device (null: filled by fabrail from SeedSequence(seed).spawn(n)[i])."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "egress": {
+                "enum": [
+                  "non_rated",
+                  "fire_rated"
+                ]
+              }
+            },
+            "required": [
+              "egress"
+            ]
+          },
+          "then": {
+            "properties": {
+              "policy": {
+                "not": {
+                  "enum": [
+                    "land_and_lock",
+                    "seat_and_latch"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "class": {
+                "const": "haven_r"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "fidelity": {
+                "const": "platform3dof"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "fidelity": {
+                "enum": [
+                  "carriage6",
+                  "travel1d"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "policy": {
+                "enum": [
+                  "smooth_ride_through",
+                  "seat_and_hold",
+                  "seat_and_latch"
+                ]
+              }
+            },
+            "required": [
+              "policy"
+            ]
+          },
+          "then": {
+            "properties": {
+              "class": {
+                "const": "drawer"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "hero": {
+                "const": true
+              }
+            },
+            "required": [
+              "hero"
+            ]
+          },
+          "then": {
+            "properties": {
+              "fidelity": {
+                "const": "carriage6"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "alert_feed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "t_s",
+        "id"
+      ],
+      "description": "One synthetic/injected alert message (AlertFeedKind; local P picks come from the device and structure detectors, never from this list).",
+      "properties": {
+        "kind": {
+          "enum": [
+            "network",
+            "offshore_cabled",
+            "das",
+            "pegs_magnitude_advisory"
+          ],
+          "description": "Feed kind."
+        },
+        "t_s": {
+          "type": "number",
+          "description": "Receipt time in scene time, s.",
+          "minimum": 0
+        },
+        "id": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295,
+          "description": "Alert id (updates reuse the id)."
+        },
+        "magnitude": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Magnitude estimate.",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "r_epi_km": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Epicentral distance, km.",
+          "minimum": 0,
+          "maximum": 20000
+        },
+        "depth_km": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Depth, km.",
+          "minimum": 0,
+          "maximum": 700
+        },
+        "origin_t_s": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Origin time in scene time, s."
+        },
+        "mmi": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Predicted site intensity (MMI).",
+          "minimum": 1,
+          "maximum": 12
+        },
+        "cancel_t_s": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Cancellation time in scene time, s.",
+          "minimum": 0
+        },
+        "spoofed": {
+          "type": "boolean",
+          "default": false,
+          "description": "The message is false (no earthquake): spoof-matrix and bounded-regret tests."
+        }
+      }
+    },
+    "alert": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provenance"
+      ],
+      "description": "Alert inputs to the fusion and the house choreographer. Network-only or injected alerts may cause only FREEZE, LAND, LOCK or SEISMIC_PASSIVE; alert-triggered motion needs independent confirmation (a local P pick or >= 2 independent feeds) and stays within unattended low-energy limits.",
+      "properties": {
+        "provenance": {
+          "const": "synthetic/injected, not a live EEW feed",
+          "description": "Required label: fabrail is not an EEW provider."
+        },
+        "local_p": {
+          "type": "boolean",
+          "default": true,
+          "description": "On-site P detection by the structure accelerometers is enabled."
+        },
+        "feeds": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "$ref": "#/$defs/alert_feed"
+          },
+          "default": [],
+          "description": "Injected feed messages."
+        },
+        "vp_kmps": {
+          "type": "number",
+          "description": "P-wave speed of the S-ETA model, km/s.",
+          "exclusiveMinimum": 0,
+          "maximum": 10,
+          "default": 6.0
+        },
+        "vs_kmps": {
+          "type": "number",
+          "description": "S-wave speed of the S-ETA model, km/s.",
+          "exclusiveMinimum": 0,
+          "maximum": 10,
+          "default": 3.5
+        },
+        "s_eta_sigma_s": {
+          "type": "number",
+          "description": "Standard deviation of the S arrival-time distribution, s.",
+          "minimum": 0,
+          "maximum": 30,
+          "default": 0.5
+        }
+      }
+    },
+    "power": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "p_bus_max_w"
+      ],
+      "description": "Shared building bus: the choreographer staggers motions under this budget (summed in registry order).",
+      "properties": {
+        "p_bus_max_w": {
+          "type": "number",
+          "description": "Bus power budget, W.",
+          "exclusiveMinimum": 0
+        },
+        "ups": {
+          "type": "boolean",
+          "default": false,
+          "description": "A building UPS backs the mains (admission to smooth_ride_through)."
+        },
+        "mains_loss_t_s": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Mains lost at this scene time (e.g. at S arrival), s.",
+          "minimum": 0
+        },
+        "mains_restore_t_s": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Mains restored at this scene time, s.",
+          "minimum": 0
+        }
+      }
+    },
+    "choreo": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "House choreographer settings (fabrail-exo choreo; non-safety, declared not a rated safety function).",
+      "properties": {
+        "enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run the choreographer (false: every device takes its core class action)."
+        },
+        "smoothing": {
+          "type": "boolean",
+          "default": false,
+          "description": "Allow inertial smoothing / smooth_ride_through (research tier; paired on/off runs)."
+        },
+        "deadline_quantile": {
+          "type": "number",
+          "description": "Deadline quantile of the S-arrival distribution.",
+          "exclusiveMinimum": 0,
+          "maximum": 0.5,
+          "default": 0.05
+        },
+        "deadline_margin_s": {
+          "type": "number",
+          "description": "Deadline = quantile - margin, s.",
+          "minimum": 0,
+          "maximum": 10,
+          "default": 1.0
+        },
+        "unattended_close": {
+          "type": "boolean",
+          "default": true,
+          "description": "Alert-initiated closes run under unattended limits v <= min(v_cap, 150 N / sqrt(m_gov * k_series)) with obstruction armed and one attempt."
+        }
+      }
+    },
+    "operator_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "t_s",
+        "action"
+      ],
+      "description": "Owner/operator action. Restore runs only in NORMAL after the INSPECT reset and a self-test, needs a local command (remote-only is rejected), goes one device at a time at unattended limits and ends with log-damped open termini at the remembered positions.",
+      "properties": {
+        "t_s": {
+          "type": "number",
+          "description": "Scene time, s.",
+          "minimum": 0
+        },
+        "action": {
+          "enum": [
+            "inspect_reset",
+            "restore",
+            "cancel_alert"
+          ],
+          "description": "Action."
+        },
+        "source": {
+          "enum": [
+            "local",
+            "remote"
+          ],
+          "description": "Origin.",
+          "default": "local"
+        },
+        "devices": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,31}$"
+          },
+          "description": "Target devices (null: all)."
+        }
+      }
+    },
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Recording.",
+      "properties": {
+        "rate_hz": {
+          "type": "number",
+          "description": "Recording rate for non-hero devices, Hz (hero devices record at the scenario default).",
+          "exclusiveMinimum": 0,
+          "maximum": 1000,
+          "default": 100
+        },
+        "devices": {
+          "description": "'all' or a list of device ids.",
+          "default": "all",
+          "oneOf": [
+            {
+              "const": "all"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,31}$"
+              },
+              "uniqueItems": true
+            }
+          ]
+        },
+        "channels": {
+          "description": "'default', 'kpis_only' or a list of channel names (fabrail.scenario/1 record.channels).",
+          "default": "default",
+          "oneOf": [
+            {
+              "enum": [
+                "default",
+                "kpis_only"
+              ]
+            },
+            {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,63}$"
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

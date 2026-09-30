@@ -1,0 +1,109 @@
+# fabrail firmware: RTIC 2 application for the STM32G474RE (NUCLEO-G474RE bring-up kit).
+#
+# A separate workspace (core design §F): never a member of the host workspace, because
+# its target-gated dependencies, `build.target` and `panic = "abort"` profile must not
+# leak into host builds, and the stm32g4 PAC build script needs a device feature.
+#
+# Status: builds and links for thumbv7em-none-eabihf; NEVER FLASHED (FAB-FW-010,
+# FAB-FW-012). See README.md.
+#
+# Versions are pinned exactly (FAB-FW-001, plan §5 W0a): rtic 2.3.1, rtic-monotonics
+# 2.2.1, stm32g4xx-hal 0.1.0, stm32g4 0.16, cortex-m 0.7.9, cortex-m-rt 0.7.7, defmt
+# 1.1.1, defmt-rtt 1.3.0, panic-probe 1.0.0 (postcard 1.1.3 for the parameter pages).
+#
+# fabrail-rt's simulation-only fault injector must never be enabled in this workspace
+# (FAB-EXO-307): its feature name appears nowhere in this manifest or Cargo.lock, and
+# scripts/check_firmware.sh checks both files and the resolved feature set.
+
+[workspace]
+resolver = "3"
+
+[package]
+name = "fabrail-fw"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.89"
+license = "MIT"
+publish = false
+description = "fabrail firmware: the fabrail-rt executive as an RTIC 2 app on the STM32G474RE (built and linked; never flashed)"
+
+[[bin]]
+name = "fabrail-fw"
+path = "src/main.rs"
+test = false
+bench = false
+doctest = false
+
+[dependencies]
+# Shared no_std crates (the exact code SIL runs; SIL ≡ firmware, core design §A.4 item 7).
+fabrail-types = { path = "../crates/fabrail-types" }
+fabrail-params = { path = "../crates/fabrail-params", features = ["serde"] }
+fabrail-hal = { path = "../crates/fabrail-hal" }
+fabrail-core = { path = "../crates/fabrail-core" }
+fabrail-safety = { path = "../crates/fabrail-safety" }
+fabrail-rt = { path = "../crates/fabrail-rt" }
+
+# RTIC 2 (stable since Rust 1.75) with the Cortex-M3/M4/M7 (BASEPRI) backend.
+rtic = { version = "=2.3.1", features = ["thumbv7-backend"] }
+# SysTick monotonic only: the stm32 timer backends pull stm32-metapac (a second PAC).
+rtic-monotonics = { version = "=2.2.1", features = ["cortex-m-systick"] }
+# HAL: `stm32g474` implies adc3/adc4/adc5 and the HRTIM register crate; `hrtim` and
+# `can` (fdcan 0.2) enable the HRTIM and FDCAN drivers. `rt` (default) provides the PAC
+# interrupt vector table (device.x) that RTIC binds to.
+stm32g4xx-hal = { version = "=0.1.0", features = ["stm32g474", "hrtim", "can"] }
+# FDCAN driver the HAL's `can` feature is built on (named directly for its types).
+fdcan = { version = "=0.2.1", features = ["fdcan_g0_g4_l5"] }
+# PAC pinned explicitly; the same crate the HAL re-exports as `stm32g4xx_hal::stm32`.
+stm32g4 = { version = "=0.16.0", features = ["stm32g474", "rt"] }
+cortex-m = { version = "=0.7.9", features = ["critical-section-single-core"] }
+cortex-m-rt = "=0.7.7"
+# Parameter A/B flash pages: postcard image + CRC32 (core design §F).
+postcard = { version = "=1.1.3", default-features = false }
+
+# Development-only logging and panic reporting (never in a production image: the
+# production panic handler disables every output, writes a crash record and resets).
+defmt = { version = "=1.1.1", optional = true }
+defmt-rtt = { version = "=1.3.0", optional = true }
+panic-probe = { version = "=1.0.0", optional = true, features = ["print-defmt"] }
+
+[features]
+default = ["class-door"]
+# Exactly one rail class selects the factory preset used when the parameter pages are
+# erased (fabrail_params::presets::by_class). src/main.rs rejects zero or several.
+class-drawer = []
+class-door = []
+class-wall = []
+class-heavy = []
+# defmt over RTT + panic-probe (probe-rs). Adds -Tdefmt.x through build.rs.
+dev = ["dep:defmt", "dep:defmt-rtt", "dep:panic-probe"]
+
+# Size-optimised (W2 lead decision D9): opt-level "z" for the whole image, fat LTO, one
+# codegen unit, panic = "abort", no defmt (defmt/RTT/panic-probe only with the `dev`
+# feature). Measured door image (2026-09-27, llvm-size text + data): "z" ≈ 280 KB,
+# "s" ≈ 320 KB, 3 ≈ 400 KB. A per-crate split ("s" for the ISR crates core/rt/safety/
+# types/libm, "z" elsewhere) saves only ≈ 4 KB over all-"s" because the init-time code
+# (f64 soft-float gain design in `Executive::new` / `FastLoop::new`, the 368-field
+# `validate` table with its strings, the postcard decoder of `SystemParams`) lives in the
+# same crates as the ISR paths; under fat LTO the root crate's level also governs the
+# LTO pipeline. scripts/check_firmware.sh enforces the flash/RAM budget on this profile
+# (README "Size" gives the budget rationale). The ISR paths are therefore also built at
+# "z": the cycle budgets in README are core design §F estimates, unmeasured on hardware
+# (FAB-FW-012); the `speed` profile below is the fallback for timing work.
+[profile.release]
+opt-level = "z"
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+# Symbols stay in the ELF only (not in flash); llvm-size reports the loadable sections.
+debug = 2
+incremental = false
+
+# Core design §F profile (opt 3, fat LTO, cgu 1, abort). Not size-checked.
+[profile.speed]
+inherits = "release"
+opt-level = 3
+
+[profile.dev]
+opt-level = "s"
+panic = "abort"
+debug = 2

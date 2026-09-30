@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frontier · fabrail</title>
+<meta name="description" content="The frontier observatory: theoretical what-if studies of the rail with a missing material, sensor or scale, each with the orders of magnitude still missing. Never product claims.">
+<meta name="color-scheme" content="dark light">
+<script src="assets/js/theme.js"></script>
+<link rel="stylesheet" href="assets/css/site.css">
+<style>
+/* frontier (owner W4). Under reduced motion every animation on this page falls back to a
+   static keyframe; the PEGS race has a Play button and every control still works. */
+@media (prefers-reduced-motion: reduce) {
+  .scene *, .scene *::before, .scene *::after,
+  .stage *, .stage *::before, .stage *::after { animation: none !important; transition: none !important; }
+}
+
+.gap-list { list-style: none; padding: 0; margin: 1rem 0 0; font-family: var(--font-sans); font-size: 0.84rem; max-width: none; }
+.gap-list li { display: grid; grid-template-columns: minmax(10rem, 18rem) minmax(0, 1fr) 6.5rem; gap: 0.2rem 0.8rem; align-items: center; margin: 0; padding: 0.4rem 0; border-bottom: 1px solid var(--hair); }
+.gap-list li + li { margin-top: 0; }
+.gap-name { color: var(--ink); }
+.gap-name .badge { font-size: 0.68rem; margin-left: 0.35em; }
+.gap-name a { color: inherit; text-decoration: none; }
+.gap-name a:hover { text-decoration: underline; }
+.gap-track { position: relative; height: 12px; border-radius: 6px; background: var(--grid); }
+.gap-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 6px; background: var(--frontier); }
+.gap-fill[data-zero] { background: transparent; }
+.gap-val { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ink); white-space: nowrap; }
+.gap-note { grid-column: 1 / -1; color: var(--ink-3); font-size: 0.76rem; }
+.gap-axis { display: grid; grid-template-columns: minmax(10rem, 18rem) minmax(0, 1fr) 6.5rem; gap: 0 0.8rem; font-family: var(--font-sans); font-size: 0.72rem; color: var(--ink-3); margin-top: 0.3rem; }
+.gap-axis .ticks { display: flex; justify-content: space-between; }
+
+.fcard { max-width: none; margin-top: 2.6rem; padding: 1.1rem 1.1rem 1rem; background: var(--bg-panel); border: 1px solid var(--line); border-top: 3px solid var(--frontier); border-radius: var(--radius); }
+.fcard > h2 { margin-top: 0.8rem; font-size: 1.35rem; }
+.fcard > .banner { margin-top: 0; }
+.fcard-meta { display: flex; flex-wrap: wrap; gap: 0.3rem 1rem; margin-top: 0.4rem; font-family: var(--font-sans); font-size: 0.8rem; color: var(--ink-3); }
+.fcard-grid { display: grid; gap: 1rem; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); align-items: start; margin-top: 0.8rem; }
+.fcard-grid > * { min-width: 0; }
+.fcard-grid .stage, .fcard-grid .figure { margin-top: 0; }
+.fcard p, .fcard ul { max-width: var(--measure); }
+.honest { margin-top: 0.8rem; font-size: 0.95rem; }
+.honest li { margin-top: 0.25rem; }
+.frontier-stage canvas { height: clamp(250px, 28vw, 330px); }
+.meter-asd { margin-top: 0.6rem; }
+.meter-asd canvas { width: 100%; height: 78px; display: block; }
+.mini-canvas { width: 100%; height: 230px; display: block; border-radius: 6px; background: var(--bg-deep); }
+.scale-table td.num, .scale-table th.num { text-align: right; }
+.relabelled { display: grid; gap: 0.8rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr)); margin-top: 1rem; max-width: none; }
+.relabelled .card { cursor: default; }
+.relabelled .card:hover { box-shadow: none; border-color: var(--line); }
+@media (max-width: 900px) {
+  .fcard-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .gap-list li, .gap-axis { grid-template-columns: minmax(0, 1fr) 5.5rem; }
+  .gap-list li .gap-track { grid-column: 1 / -1; grid-row: 2; }
+  .gap-axis > span:first-child { display: none; }
+  .frontier-stage .stage-chip { position: static; display: block; margin: 0.6rem 0.6rem 0; border-radius: 8px; }
+}
+</style>
+</head>
+<body data-page="frontier">
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <a class="wordmark" href="index.html" aria-label="fabrail home">FAB<span>·</span>RAIL</a>
+  <nav class="site-nav" aria-label="Site pages" data-site-nav>
+    <a href="index.html">Overview</a>
+    <a href="levitate.html">Levitate</a>
+    <a href="glide.html">Glide</a>
+    <a href="touch.html">Touch</a>
+    <a href="quake.html">Quake</a>
+    <a href="villa.html">Villa</a>
+    <a href="sovereign.html">Sovereign</a>
+    <a href="frontier.html">Frontier</a>
+    <a href="examples.html">Examples</a>
+  </nav>
+  <button class="theme-btn" type="button" data-theme-toggle aria-label="Toggle colour theme" title="Toggle colour theme">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"></path></svg>
+  </button>
+</header>
+<main id="main" class="page">
+  <p class="eyebrow">Frontier observatory</p>
+  <h1>How far away is it?</h1>
+  <p class="lede">Each study asks what would change if a missing material, sensor or scale existed, and says in numbers how far away that is. The numbers are what-if numbers from published theory; none of them describes something that exists or that fabrail builds.</p>
+  <div class="banner frontier" role="note"><span class="badge badge--f">🔭 frontier</span> <strong>Frontier tier: theoretical what-if studies, never product claims.</strong> Every card names the nearest real, demonstrated capability it extrapolates from (its anchor tier) and states the orders of magnitude still missing. No frontier model drives a controller or a safety function.</div>
+
+  <section aria-labelledby="gap-title" class="wide">
+    <h2 id="gap-title">Missing orders of magnitude</h2>
+    <p style="max-width: var(--measure)">The figure is the base-10 logarithm of the factor by which the best demonstration falls short of the need, floored at 0. It answers one question: how far is the item from its nearest real anchor? <span id="gap-source" class="small muted">Values from FRONTIER.md §1 and §F1.</span></p>
+    <ul class="gap-list" id="gap-list" aria-label="Missing orders of magnitude per item"></ul>
+    <div class="gap-axis" aria-hidden="true"><span></span><span class="ticks"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span></span><span>orders</span></div>
+  </section>
+
+  <article class="fcard" id="pegs" aria-labelledby="pegs-title">
+    <div data-frontier-banner data-missing="5 orders of magnitude">PEGS on-site gradiometer: needs 1e-15/√Hz; best demonstrated 1e-10/√Hz.</div>
+    <h2 id="pegs-title">Gravity arrives first: PEGS against the P-wave</h2>
+    <div class="fcard-meta"><span class="badge badge--f">🔭 frontier</span><span>anchor tier 🧪 PEGS network magnitude, Mw ≥ 8.3</span><span>FAB-FRN-003</span><span>FRONTIER §F4</span></div>
+    <p>A rupture moves mass, and the change in gravity travels at the speed of light, so a prompt elasto-gravity signal reaches a site before the P-wave. On an accelerometer it cancels; a gradiometer would see it, at a sensitivity nobody has built. Move the detector noise and watch the race.</p>
+    <div class="fcard-grid">
+      <figure class="stage frontier-stage" id="pegs-stage">
+        <div class="stage-chip" id="pegs-chip">–</div>
+        <canvas id="pegs-canvas" role="img" aria-label="Cross-section: an earthquake source at depth on the left, a dense seismic station near it and the site on the right. The P-wave front expands at 6.5 kilometres per second; a gradiometer at the site fills its detection gauge as the gravity signal grows. The readouts give the detection time, the network alert and the P arrival."></canvas>
+        <div class="stage-controls">
+          <button class="btn" type="button" id="pegs-play" aria-pressed="false">Play</button>
+          <span class="sim-label" title="A theoretical what-if model; not a product claim">🔭 what-if model</span>
+          <span class="small">time slowed; not to scale</span>
+        </div>
+      </figure>
+      <div>
+        <div class="controls" id="pegs-controls">
+          <label class="slider"><span>detector noise (ASD)</span><output data-readout="asd">1e−15</output><input type="range" data-param="asd" data-log data-digits="2" min="-19" max="-10" step="0.1" value="-15"></label>
+          <label class="slider"><span>magnitude Mw</span><output data-readout="mw">7</output><input type="range" data-param="mw" data-digits="2" min="6.5" max="9.2" step="0.1" value="7"></label>
+          <label class="slider"><span>epicentral distance</span><output data-readout="r">100 km</output><input type="range" data-param="r" data-scale="0.001" data-unit="km" data-digits="3" min="20" max="500" step="5" value="100"></label>
+        </div>
+        <div class="readouts" id="pegs-readouts">
+          <div class="stat"><span class="stat-label">Gradiometer detects</span><span class="stat-value" data-read="tdet">–</span><span class="stat-note">SNR 5 in a 0.1 Hz band</span></div>
+          <div class="stat"><span class="stat-label">Dense network alert</span><span class="stat-value" data-read="tnet">–</span><span class="stat-note">station 22 km, 3.3 s latency</span></div>
+          <div class="stat"><span class="stat-label">P at the site</span><span class="stat-value" data-read="tp">–</span><span class="stat-note">6.5 km/s</span></div>
+          <div class="stat"><span class="stat-label">Gain over the network</span><span class="stat-value" data-read="gain">–</span><span class="stat-note" data-read="gainNote">&nbsp;</span></div>
+        </div>
+        <div class="meter-asd"><canvas id="pegs-meter" role="img" aria-label="Sensitivity scale from 1e-19 to 1e-9 per root hertz: the best demonstrated detector at 1e-10, the need at 1e-15, five orders apart, and the selected value."></canvas></div>
+      </div>
+    </div>
+    <ul class="honest">
+      <li>The need is 1e-15/√Hz (the TOBA Phase-III target); the best demonstrated is 1e-10/√Hz (TOBA Phase-II, 3–8 Hz): five orders short.</li>
+      <li>The fair comparison is a network alert, not the on-site P pick: against a dense P network the lead-time gain at the reference case is about 0 s. It is real only where no station is near the source, offshore or across a border.</li>
+      <li>Even an ideal detector sees only the moment released so far: PEGS can detect early but cannot know the final magnitude early. Its real value is a magnitude that does not saturate, which network PEGS already gives for Mw ≥ 8.3.</li>
+      <li>In fabrail only the network magnitude advisory (research tier) enters fusion, never as a sole trigger (FAB-EXO-810).</li>
+    </ul>
+  </article>
+
+  <article class="fcard" id="metabarrier" aria-labelledby="meta-title">
+    <div data-frontier-banner data-missing="4.4 orders of magnitude at 1 Hz">Building-scale active metabarrier: the resonating mass grows as ρ·v_s³/f³.</div>
+    <h2 id="meta-title">A metabarrier around a building: the mass law</h2>
+    <div class="fcard-meta"><span class="badge badge--f">🔭 frontier</span><span>anchor tier 🧪 field tests at 30–150 Hz</span><span>FAB-FRN-004</span><span>FRONTIER §F5</span></div>
+    <p>A seismic metamaterial reflects surface waves in a band near its resonators' frequency. For a fixed relative band gap the resonating mass per area scales as ρ·v<sub>s</sub>/f, and a barrier about one shear wavelength wide around a site has an area of order λ², so the mass scales as ρλ³: 1.8 Mt at 1 Hz on soil with v<sub>s</sub> = 100 m/s. Every output states v<sub>s</sub>.</p>
+    <div class="fcard-grid">
+      <div class="figure">
+        <div class="figure-title">Resonating mass against the target frequency</div>
+        <div id="meta-chart"></div>
+      </div>
+      <div>
+        <div class="controls" id="meta-controls">
+          <label class="slider"><span>target frequency f</span><output data-readout="f">1 Hz</output><input type="range" data-param="f" data-log data-unit="Hz" data-digits="3" min="-0.5" max="1.5" step="0.01" value="0"></label>
+          <label class="slider"><span>soil shear-wave speed v<sub>s</sub></span><output data-readout="vs">100 m/s</output><input type="range" data-param="vs" data-unit="m/s" data-digits="3" min="60" max="400" step="5" value="100"></label>
+        </div>
+        <div class="readouts" id="meta-readouts">
+          <div class="stat"><span class="stat-label">Resonating mass</span><span class="stat-value" data-read="mass">–</span><span class="stat-note">ρ·(v<sub>s</sub>/f)³, ρ 1,800 kg/m³</span></div>
+          <div class="stat"><span class="stat-label">In 5 t HEAVY units</span><span class="stat-value" data-read="units">–</span><span class="stat-note">each an LSM-trimmed resonator</span></div>
+          <div class="stat"><span class="stat-label">Wavelength</span><span class="stat-value" data-read="lam">–</span><span class="stat-note">λ = v<sub>s</sub>/f</span></div>
+          <div class="stat"><span class="stat-label">Missing orders</span><span class="stat-value" data-read="miss">–</span><span class="stat-note">3·log₁₀(30 Hz/f)</span></div>
+        </div>
+      </div>
+    </div>
+    <ul class="honest">
+      <li>An LSM can retune the band in seconds; it cannot create momentum capacity. The mass is the limit, and the stiffness must be physical springs with the LSM as trim (about 79 kN per 5 t unit at 1 Hz otherwise).</li>
+      <li>Active cancellation instead of reflection would have to absorb ρ·v<sub>s</sub>·v²·A: about 0.7–9 GW across a 100 × 50 m section at 0.5–1 m/s.</li>
+      <li>No field test exists below 10 Hz, where buildings respond.</li>
+    </ul>
+  </article>
+
+  <article class="fcard" id="rtsc" aria-labelledby="rtsc-title">
+    <div data-frontier-banner data-missing="0.4 orders of magnitude in Tc">Ambient-pressure room-temperature superconductor: needs Tc ≈ 358 K; the best ambient-pressure material is about 138 K.</div>
+    <h2 id="rtsc-title">A room-temperature superconductor would not lift more</h2>
+    <div class="fcard-meta"><span class="badge badge--f">🔭 frontier</span><span>anchor tier 🧪 HTS flux pinning</span><span>FAB-FRN-001</span><span>FRONTIER §F2</span></div>
+    <p>No room-temperature superconductor exists. If one did, over a permanent-magnet guideway it could at best exclude the whole field, which caps the pressure at (B₀²/μ₀)·e<sup>−2kh</sup>: 0.51 MPa at a 10 mm gap for a 154 mm guideway period, about 10× today's HTS and below FeCo EMS at 2.1 MPa. Its value would be passive stability without cryogenics, not force density. Tc, not pressure, is the gap.</p>
+    <div class="fcard-grid">
+      <div class="figure">
+        <div class="figure-title">Pressure at 300 K against Tc, for three shielding efficiencies</div>
+        <div id="rtsc-chart"></div>
+      </div>
+      <div>
+        <div class="controls" id="rtsc-controls">
+          <label class="slider"><span>gap h</span><output data-readout="h">10 mm</output><input type="range" data-param="h" data-scale="1000" data-unit="mm" data-digits="3" min="0" max="25" step="0.5" value="10"></label>
+        </div>
+        <div class="readouts" id="rtsc-readouts">
+          <div class="stat"><span class="stat-label">Rail-limited ceiling</span><span class="stat-value" data-read="ceil">–</span><span class="stat-note">B₀ 1.2 T, λ 154 mm</span></div>
+          <div class="stat"><span class="stat-label">Today's bulk HTS</span><span class="stat-value" data-read="today">–</span><span class="stat-note">η ≈ 0.15 of the ideal image</span></div>
+          <div class="stat"><span class="stat-label">Tc needed at 300 K</span><span class="stat-value" data-read="tc">–</span><span class="stat-note">300 × 92/77 (REBCO's reduced temperature)</span></div>
+        </div>
+      </div>
+    </div>
+    <ul class="honest">
+      <li>LK-99 was refuted in 2023 and the Dias papers were retracted; LaH₁₀ reaches about 250 K only near 170 GPa.</li>
+      <li>More pinning never lifts the pressure above the ideal image: the ceiling stays rail-limited whatever Tc is.</li>
+    </ul>
+  </article>
+
+  <article class="fcard" id="cloak" aria-labelledby="cloak-title">
+    <div data-frontier-banner data-missing="2 orders of magnitude at a 1 m shell">Structure-scale magnetic cloak or concentrator: demonstrated only as centimetre laboratory cylinders.</div>
+    <h2 id="cloak-title">Making a rail magnetically invisible</h2>
+    <div class="fcard-meta"><span class="badge badge--f">🔭 frontier</span><span>anchor tier 🧪 cm-scale laboratory cloaks</span><span>FAB-FRN-007</span><span>FRONTIER §F8</span></div>
+    <p>An ideal superconducting inner shell inside a ferromagnetic outer shell hides a cylinder from a uniform field when μ<sub>FM</sub> = (R₂² + R₁²)/(R₂² − R₁²). A concentrator packs field inward by R₂/R₁ but can never beat iron: its gain stays at or below B<sub>sat</sub>/B₀. The use case is a rail next to MRI or quantum instruments; people need no cloak, because a Halbach array's one-sided field already falls to 0.5 mT within about 1.2 periods.</p>
+    <div class="fcard-grid">
+      <div class="figure">
+        <div class="figure-title">Required shell permeability against the radius ratio</div>
+        <div id="cloak-chart"></div>
+      </div>
+      <div>
+        <canvas class="mini-canvas" id="cloak-canvas" role="img" aria-label="A uniform field passes a cloaked cylinder undisturbed outside, with no field inside the inner shell."></canvas>
+        <div class="controls" id="cloak-controls">
+          <label class="slider"><span>radius ratio R₂/R₁</span><output data-readout="ratio">1.2</output><input type="range" data-param="ratio" data-digits="3" min="1.05" max="4" step="0.01" value="1.2"></label>
+          <label class="slider"><span>outer radius R₂</span><output data-readout="r2">1 m</output><input type="range" data-param="r2" data-log data-unit="m" data-digits="2" min="-3" max="1" step="0.05" value="0"></label>
+        </div>
+        <div class="readouts" id="cloak-readouts">
+          <div class="stat"><span class="stat-label">μ<sub>FM</sub> needed</span><span class="stat-value" data-read="mu">–</span><span class="stat-note">ideal SC–FM bilayer</span></div>
+          <div class="stat"><span class="stat-label">Tier at this size</span><span class="stat-value" data-read="tier">–</span><span class="stat-note" data-read="tierNote">log₁₀(R₂/1 cm)</span></div>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <article class="fcard" id="selene" aria-labelledby="selene-title">
+    <div data-frontier-banner data-missing="2 orders of magnitude">SELENE lunar hatch: 5 m of hatch travel against centimetre FLOAT prototypes.</div>
+    <h2 id="selene-title">SELENE: a 100 t hatch in a permanently shadowed crater</h2>
+    <div class="fcard-meta"><span class="badge badge--f">🔭 frontier</span><span>anchor tier 🧪 NASA/JPL FLOAT concept</span><span>FAB-FRN-006</span><span>FRONTIER §F7</span><span>maturity TRL 1–2</span></div>
+    <p>Permanently shadowed regions sit at about 25–40 K, cold enough for REBCO without a cryocooler, but every watt dissipated there needs square metres of ideal radiator. Only passive flux-pinned HTS over permanent magnets, driven only while it moves, fits that budget; moonquakes ring for about an hour, so holding matters more than warning, hence land and lock.</p>
+    <div class="fcard-grid">
+      <div>
+        <div class="table-wrap">
+          <table class="scale-table">
+            <thead><tr><th scope="col">Quantity</th><th scope="col">Law</th><th scope="col" class="num">Moon against Earth</th></tr></thead>
+            <tbody id="selene-table">
+              <tr><td>EMS open-loop pole</td><td>p = √(2g/gap)</td><td class="num">×0.406</td></tr>
+              <tr><td>Lift of the same magnet</td><td>∝ 1/g</td><td class="num">×6.05</td></tr>
+              <tr><td>Friction-pendulum period</td><td>T = 2π·√(R/g)</td><td class="num">×2.46</td></tr>
+              <tr><td>HTS bulk area, 100 t at 53 kPa</td><td>m·g/p</td><td class="num">≈ 3.1 m²</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="callout" role="note" style="border-left-color: var(--frontier)"><p><strong>Dust caveat.</strong> Lunar regolith carries nanophase metallic iron, which is ferromagnetic and collects on permanent-magnet guideways. fabrail does not model it. NdFeB also reorients its spins below about 135 K, so shadowed-crater magnets would be PrFeB or SmCo.</p></div>
+      </div>
+      <div class="figure">
+        <div class="figure-title">Radiated flux against surface temperature</div>
+        <div id="selene-chart"></div>
+        <div class="controls" id="selene-controls">
+          <label class="slider"><span>temperature</span><output data-readout="T">40 K</output><input type="range" data-param="T" data-unit="K" data-digits="3" min="20" max="80" step="1" value="40"></label>
+          <label class="slider"><span>emissivity ε</span><output data-readout="eps">1</output><input type="range" data-param="eps" data-digits="2" min="0.5" max="1" step="0.01" value="1"></label>
+        </div>
+        <div class="readouts" id="selene-readouts">
+          <div class="stat"><span class="stat-label">Radiated flux</span><span class="stat-value" data-read="q">–</span><span class="stat-note">q = ε·σ·T⁴</span></div>
+          <div class="stat"><span class="stat-label">Radiator per watt</span><span class="stat-value" data-read="area">–</span><span class="stat-note">1/q, ideal</span></div>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <section aria-labelledby="relabel-title" class="wide" style="margin-top:2.6rem">
+    <h2 id="relabel-title">Demonstrated, so not frontier</h2>
+    <p style="max-width: var(--measure)">These were relabelled from 🔭 because they exist at some scale; each keeps its own limit.</p>
+    <div class="relabelled">
+      <div class="card" style="--tile: var(--tier-r)"><span data-tier="r" data-tier-note="FAB-FRN-002"></span><h3>Trapped-field bulk magnets</h3><p>Multi-tesla bulks exist (17.6 T at 26 K reported). Pulling on steel, the pressure stays at or below 2.1 MPa whatever the trapped field: rail saturation, not the bulk, is the cap.</p></div>
+      <div class="card" style="--tile: var(--tier-v)"><span class="badge badge--v">✅ physics</span> <span class="small muted">FLOAT 🧪 · FAB-FRN-009</span><h3>Diamagnetic levitation</h3><p>p = |χ|·B²/2μ₀ ≈ 179 Pa at 1 T for pyrolytic graphite, an upper bound: 3.3 orders below an EMS rail at the same field. Consistent with FLOAT's 33 kg/m² under lunar gravity, only 18 kg/m² gross on Earth.</p></div>
+      <div class="card" style="--tile: var(--tier-r)"><span data-tier="r" data-tier-note="FAB-FRN-005"></span><h3>Quasi-zero-stiffness isolation</h3><p>Deployed at instrument scale (zero-power tables, LIGO's HAM-ISI). At building scale the stroke must cover 0.5–2 m against a millimetre gap: 2.7 orders missing. A tilt of 1 mrad reads as 25 mm of false displacement at 0.1 Hz.</p></div>
+      <div class="card" style="--tile: var(--tier-r)"><span data-tier="r" data-tier-note="FAB-FRN-007"></span><h3>Laboratory-scale magnetic cloak</h3><p>A superconducting inner shell with a ferromagnetic outer shell at 77 K in a DC field (2012). Superconductor AC losses rule these out for the travelling field of an LSM.</p></div>
+      <div class="card" style="--tile: var(--tier-m)"><span class="badge badge--m">documented only</span><h3>NV-centre and atom sensing</h3><p>Over-specified for gap control: an NV magnetometer at 10 nT/√Hz adds about 2 nm to a drawer's gap estimate. Its frontier role is gradiometry and drift-free tilt references.</p></div>
+      <div class="card" style="--tile: var(--tier-r)"><span data-tier="r"></span> <span class="small muted">documented only</span><h3>DAS along the rail; safe-RL haptics</h3><p>A fibre along a long rail is a dense strain array (one feed kind, never a sole trigger). Learned door feel only inside a control-barrier filter that holds the pedestrian caps; the integer monitor stays in place.</p></div>
+    </div>
+  </section>
+
+  <div class="callout scope" role="note">
+    <p><strong>What this page is not.</strong></p>
+    <ul>
+      <li>None of these items is a product, a plan or a design commitment; the numbers are what-if numbers with their assumptions stated (FRONTIER §0).</li>
+      <li>Frontier code lives only in <code>python/fabrail/exotic/frontier/</code> (numpy); the browser curves on this page re-evaluate the same closed forms and carry the same banners.</li>
+      <li>References marked [REF-MEM] in FRONTIER.md were cited from memory and not re-checked; [UNCERTAIN] values are swept, not trusted.</li>
+    </ul>
+  </div>
+
+  <aside class="tier-legend" aria-label="Tier badges">
+    <strong>Tier badges</strong>
+    <ul>
+      <li><span class="badge badge--v">✅ V</span> verified in simulation</li>
+      <li><span class="badge badge--s">🔶 S</span> simplified model</li>
+      <li><span class="badge badge--r">🧪 R</span> research tier</li>
+      <li><span class="badge badge--m">🗺️ M</span> roadmap</li>
+      <li><span class="badge badge--f">🔭 frontier</span> overrides the badge: theoretical, never a product</li>
+    </ul>
+    <p>Technology maturity (TRL) is shown separately and never raises a badge. Badges follow <code>docs/SPECIFICATION.md</code> §0.5.</p>
+  </aside>
+</main>
+<footer class="site-footer">
+  <span>fabrail · MIT licence · simulation results, not hardware measurements</span>
+  <span class="selftest-badge" data-selftest data-state="pending">selftest: pending</span>
+</footer>
+<script src="assets/data/anchors.js"></script>
+<script src="assets/data/exo_run.js"></script>
+<script src="assets/js/nav.js"></script>
+<script src="assets/js/formulas.js"></script>
+<script src="assets/js/plot.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/engine.js"></script>
+<script src="assets/js/scene-frontier.js"></script>
+</body>
+</html>

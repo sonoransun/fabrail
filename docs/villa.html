@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Villa · fabrail</title>
+<meta name="description" content="Simulated replay of a villa in a synthetic M7.2: the house choreographer seats open drawers under unattended limits before the S-wave and reports every device it could not secure.">
+<meta name="color-scheme" content="dark light">
+<script src="assets/js/theme.js"></script>
+<link rel="stylesheet" href="assets/css/site.css">
+<style>
+/* villa (owner W4). Under reduced motion every animation on this page falls back to a
+   static keyframe: the replay draws one storyboard frame and waits for Play; the time
+   scrubber still works. */
+@media (prefers-reduced-motion: reduce) {
+  .scene *, .scene *::before, .scene *::after,
+  .stage *, .stage *::before, .stage *::after { animation: none !important; transition: none !important; }
+}
+
+.villa-stage canvas { height: clamp(340px, 46vw, 540px); }
+.villa-stage .stage-chip { max-width: min(34rem, calc(100% - 1.5rem)); }
+.villa-scrub { flex: 1 1 14rem; min-width: 10rem; display: flex; align-items: center; gap: 0.5rem; }
+.villa-scrub input[type="range"] { flex: 1 1 auto; min-height: 28px; accent-color: var(--accent); }
+.villa-clock { font-family: var(--font-mono); font-size: 0.78rem; color: var(--ink-2); white-space: nowrap; }
+.villa-jumps { display: inline-flex; flex-wrap: wrap; gap: 0.35rem; }
+.villa-jumps .btn { min-height: 30px; padding: 0.2rem 0.6rem; font-size: 0.78rem; }
+
+.villa-toolbar { display: flex; flex-wrap: wrap; gap: 0.6rem 1.2rem; align-items: center; margin-top: 1rem; font-family: var(--font-sans); font-size: 0.86rem; color: var(--ink-2); }
+.villa-toolbar .seg button .badge { margin-left: 0.35em; font-size: 0.7rem; }
+.villa-toolbar [hidden] { display: none !important; }
+.source-note { max-width: none; }
+.source-note code { overflow-wrap: anywhere; }
+
+.villa-grid { display: grid; gap: 1rem; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; max-width: none; margin-top: 1rem; }
+.villa-grid > .figure { margin-top: 0; }
+.villa-grid > .span-2 { grid-column: 1 / -1; }
+.figure-title .badge, .figure-title .sim-label { margin-left: 0.4em; font-size: 0.7rem; }
+.figure-empty {
+  margin-top: 0.8rem; padding: 1.2rem 1rem; border: 1px dashed var(--line); border-radius: var(--radius);
+  font-family: var(--font-sans); font-size: 0.86rem; color: var(--ink-3); text-align: center;
+}
+.fig-row { display: grid; gap: 0.8rem; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.fig-row > div { min-width: 0; }
+.fig-sub { font-family: var(--font-sans); font-size: 0.8rem; color: var(--ink-2); font-weight: 600; margin-top: 0.6rem; }
+
+.util-list { list-style: none; padding: 0; margin: 0.8rem 0 0; font-family: var(--font-sans); font-size: 0.82rem; }
+.util-list li { display: grid; grid-template-columns: minmax(8rem, 13rem) minmax(0, 1fr) auto; gap: 0.2rem 0.7rem; align-items: center; margin: 0; padding: 0.35rem 0; border-bottom: 1px solid var(--hair); }
+.util-list li + li { margin-top: 0; }
+.util-name { color: var(--ink-2); overflow-wrap: anywhere; }
+.util-track { position: relative; height: 10px; border-radius: 5px; background: var(--grid); }
+.util-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; background: var(--key, var(--s1)); }
+.util-mark { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--plot-ref); }
+.util-val { font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 600; white-space: nowrap; }
+.util-note { grid-column: 1 / -1; color: var(--ink-3); font-size: 0.76rem; }
+.util-axis { display: grid; grid-template-columns: minmax(8rem, 13rem) minmax(0, 1fr) auto; gap: 0 0.7rem; font-family: var(--font-sans); font-size: 0.72rem; color: var(--ink-3); margin-top: 0.3rem; }
+.util-axis span:nth-child(2) { display: flex; justify-content: space-between; }
+
+.cone-wrap { display: grid; gap: 0.9rem; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); align-items: start; margin-top: 0.6rem; }
+.cone-canvas { width: 100%; height: 250px; display: block; border-radius: 6px; background: var(--bg-deep); }
+.cone-state { margin-top: 0.5rem; font-family: var(--font-sans); font-size: 0.86rem; color: var(--ink); }
+.cone-state strong[data-state="slip"] { color: var(--plot-ref); }
+.cone-state strong[data-state="stick"] { color: var(--good); }
+.cone-presets { margin-top: 0.6rem; }
+
+.ablation { width: 100%; margin-top: 0.6rem; }
+.ablation td.num, .ablation th.num { text-align: right; }
+
+.device-table td { white-space: nowrap; }
+.device-table td.reason { white-space: normal; min-width: 12rem; }
+.device-table .status-ok { color: var(--good); font-weight: 600; }
+.device-table .status-no { color: var(--plot-ref); font-weight: 600; }
+.device-table .status-plan { color: var(--ink-2); font-weight: 600; }
+.class-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 0.45em; background: var(--key); vertical-align: 0.05em; }
+
+.event-log {
+  list-style: none; margin: 0.6rem 0 0; padding: 0.3rem 0; max-height: 15rem; overflow-y: auto;
+  font-family: var(--font-mono); font-size: 0.76rem; color: var(--ink-2);
+  border: 1px solid var(--hair); border-radius: var(--radius); background: var(--bg-deep);
+}
+.event-log li { margin: 0; padding: 0.15rem 0.7rem; }
+.event-log li + li { margin-top: 0; }
+.event-log li[data-future] { opacity: 0.38; }
+.event-log li[data-current] { color: var(--ink); background: var(--accent-dim); }
+.event-log .t { display: inline-block; min-width: 4.3rem; color: var(--ink-3); }
+
+.words { width: 100%; }
+.words td:first-child { font-weight: 600; white-space: nowrap; }
+
+@media (max-width: 900px) {
+  .villa-grid, .cone-wrap { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .villa-stage .stage-chip { position: static; display: block; margin: 0.6rem 0.6rem 0; border-radius: 8px; max-width: none; }
+  .villa-stage canvas { height: clamp(380px, 112vw, 560px); }
+  .fig-row { grid-template-columns: minmax(0, 1fr); }
+  .util-list li, .util-axis { grid-template-columns: minmax(0, 1fr) auto; }
+  .util-list li .util-track { grid-column: 1 / -1; grid-row: 2; }
+  .util-axis span:first-child { display: none; }
+}
+</style>
+</head>
+<body data-page="villa">
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <a class="wordmark" href="index.html" aria-label="fabrail home">FAB<span>·</span>RAIL</a>
+  <nav class="site-nav" aria-label="Site pages" data-site-nav>
+    <a href="index.html">Overview</a>
+    <a href="levitate.html">Levitate</a>
+    <a href="glide.html">Glide</a>
+    <a href="touch.html">Touch</a>
+    <a href="quake.html">Quake</a>
+    <a href="villa.html">Villa</a>
+    <a href="sovereign.html">Sovereign</a>
+    <a href="frontier.html">Frontier</a>
+    <a href="examples.html">Examples</a>
+  </nav>
+  <button class="theme-btn" type="button" data-theme-toggle aria-label="Toggle colour theme" title="Toggle colour theme">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"></path></svg>
+  </button>
+</header>
+<main id="main" class="page">
+  <p class="eyebrow">Flagship example · villa_quake</p>
+  <h1>A house that closes its own drawers.</h1>
+  <p class="lede">A hillside villa in a synthetic M7.2 at 60 km. After the alert, the house choreographer closes open drawers toward their seats under unattended limits, lands the pantry door, lands and locks the salon wall, and reports every device it could not secure, with the reason.</p>
+  <div class="banner research" role="note"><span class="badge badge--r">🧪 R</span> Research tier overall, with a badge on every panel. <strong>Simulated replay.</strong> Every alert on this page is synthetic/injected, not a live EEW feed. The house choreographer is not a rated safety function.</div>
+
+  <div class="callout source-note" id="villa-source" role="status">
+    <p><strong>Loading the replay…</strong> Without JavaScript this page shows its text only.</p>
+  </div>
+
+  <section class="scene-section wide" aria-labelledby="replay-title">
+    <h2 id="replay-title" class="visually-hidden">Replay</h2>
+    <div class="villa-toolbar">
+      <span>Building</span>
+      <div class="seg" id="villa-building" data-choice-group aria-label="Building configuration">
+        <button type="button" data-value="fixed_base">Fixed base <span class="badge badge--s">🔶 S</span></button>
+        <button type="button" data-value="fps_isolated" aria-pressed="true">FPS isolated, T 3 s <span class="badge badge--s">🔶 S</span></button>
+        <button type="button" data-value="haven_f">HAVEN-F <span class="badge badge--r">🧪 R</span></button>
+      </div>
+      <span id="variant-wrap" hidden>Alert path</span>
+      <div class="seg" id="villa-variant" data-choice-group aria-label="Alert path (preview only)" hidden>
+        <button type="button" data-value="network" aria-pressed="true">Network, 2 feeds</button>
+        <button type="button" data-value="onsite">On-site P only</button>
+      </div>
+    </div>
+    <figure class="stage villa-stage" id="villa-stage">
+      <div class="stage-chip" id="villa-chip" aria-live="polite">Before the earthquake: two drawers are open in the kitchen.</div>
+      <canvas id="villa-canvas" role="img" aria-describedby="villa-log-title" aria-label="Animated cross-section of the villa: kitchen drawers, cabinet sliders, a pantry sliding door, a salon partition wall and an isolated art plinth. P and S waves arrive from the left; after the alert the open drawers close toward their seats and the door and wall land. The event log below lists the same sequence."></canvas>
+      <div class="stage-controls">
+        <button class="btn" id="villa-play" type="button" aria-pressed="false">Play replay</button>
+        <label class="villa-scrub"><span class="visually-hidden">Replay time</span><input type="range" id="villa-scrub" min="0" max="40" step="0.01" value="0" aria-label="Replay time, seconds after origin"></label>
+        <span class="villa-clock num" id="villa-clock">t = 0.0 s</span>
+        <span class="villa-jumps" id="villa-jumps"></span>
+        <span data-simulated="replay" id="villa-simlabel"></span>
+      </div>
+      <figcaption class="figure-caption" style="padding: 0 0.75rem 0.7rem; background: var(--bg-panel); margin: 0;">Schematic cross-section. Device positions come from the replay (or, in the preview, from the closed-form plan); building sway is schematic and exaggerated, drawn from a single-degree-of-freedom filter of an illustrative ground motion per building configuration.</figcaption>
+    </figure>
+    <div class="readouts" id="villa-readouts">
+      <div class="stat"><span class="stat-label">Phase</span><span class="stat-value" data-read="phase">quiet</span><span class="stat-note" data-read="phaseNote">before the P-wave</span></div>
+      <div class="stat"><span class="stat-label">Devices at their target rank</span><span class="stat-value" data-read="secured">–</span><span class="stat-note" data-read="securedNote">&nbsp;</span></div>
+      <div class="stat"><span class="stat-label">Warning budget</span><span class="stat-value" data-read="budget">–</span><span class="stat-note" data-read="budgetNote">alert to deadline</span></div>
+      <div class="stat"><span class="stat-label">Bus power</span><span class="stat-value" data-read="bus">–</span><span class="stat-note" data-read="busNote">&nbsp;</span></div>
+    </div>
+  </section>
+
+  <h2 id="panels-title">What the replay shows</h2>
+  <p>Each panel carries the badge of the weakest requirement it demonstrates (<a href="examples.html">gallery rule</a>). Numbers come from the run; the preview fills only the panels that closed forms can fill honestly.</p>
+  <div class="villa-grid" aria-labelledby="panels-title">
+    <div class="figure span-2">
+      <div class="figure-title">Timeline against t<sub>P</sub> and t<sub>S</sub> <span data-tier="s" data-tier-note="FAB-EXA-004"></span></div>
+      <div id="villa-gantt"></div>
+      <p class="figure-caption" id="gantt-caption">Coloured bars: a device moving toward its target SafetyRank, ending when it is secured. Grey: an action whose timing only the run can give. Hatched red: not secured before the deadline (the device takes the core class action and is reported NotSecured with its reason). The deadline is the 5 % quantile of the predicted S arrival minus 1 s. <strong>Calculated</strong> means a deterministic plan computed at alert time, every deadline met or the miss reported, byte-identical on replay. <span id="gantt-held"></span></p>
+    </div>
+
+    <div class="figure">
+      <div class="figure-title">Drawer position <span data-tier="v" data-tier-note="FAB-EXA-008"></span></div>
+      <div id="villa-x"></div>
+      <p class="figure-caption">Open drawers close toward the seat at the unattended limit v ≤ min(v<sub>cap</sub>, 150 N/√(m<sub>gov</sub>·k<sub>series</sub>)), <span data-story="vU">0.230 m/s</span> at 48 kg. <strong>Smooth</strong> means a C² reference, peak jerk ≤ j<sub>max</sub>, arrival ≤ 1 mm/s and overshoot ≤ 0.02 mm in quiet conditions (floor below 0.01 g).</p>
+    </div>
+    <div class="figure">
+      <div class="figure-title">Distance to go, semilog <span data-tier="v" data-tier-note="FAB-HAP-013"></span></div>
+      <div id="villa-semilog"></div>
+      <p class="figure-caption"><strong>Log-damped</strong>: during capture the distance to go is d<sub>b</sub>·e<sup>−t/τ</sup>, so ln d is a straight line of slope −1/τ (the requirement asks R² ≥ 0.999). <span id="semilog-fit">The fit appears with the run.</span></p>
+    </div>
+
+    <div class="figure span-2">
+      <div class="figure-title">Contents on the vector friction cone <span data-tier="s" data-tier-note="FAB-EXA-009"></span></div>
+      <div class="cone-wrap">
+        <div>
+          <canvas class="cone-canvas" id="cone-canvas" role="img" aria-label="Friction cone diagram: a glass on the drawer floor, the cone of half-angle arctan(μ) around the effective gravity vector, and the horizontal acceleration vector. The state line below says whether the block sticks or slips."></canvas>
+          <p class="cone-state" id="cone-state">–</p>
+        </div>
+        <div>
+          <p class="small">A sliding block slips when abs(a<sub>h</sub>) &gt; μ<sub>s</sub>·(g + a<sub>z</sub>), with a<sub>h</sub> the drawer's x acceleration and the floor's y acceleration rotated by the device heading. Stemware gets a rocking flag when abs(a<sub>h</sub>) &gt; g·b/h. Toppling is not modelled. <span data-simulated="closed"></span></p>
+          <div class="controls" id="cone-controls">
+            <label class="slider"><span>μ<sub>s</sub></span><output data-readout="mu">0.35</output><input type="range" data-param="mu" data-digits="2" min="0.2" max="0.9" step="0.01" value="0.35"></label>
+            <label class="slider"><span>abs(a<sub>h</sub>)</span><output data-readout="ah">1.5 m/s²</output><input type="range" data-param="ah" data-unit="m/s²" data-digits="3" min="0" max="6" step="0.05" value="1.5"></label>
+            <label class="slider"><span>a<sub>z</sub> (up +)</span><output data-readout="az">0 m/s²</output><input type="range" data-param="az" data-unit="m/s²" data-digits="2" min="-3" max="3" step="0.05" value="0"></label>
+            <label class="slider"><span>b/h (stemware)</span><output data-readout="bh">0.35</output><input type="range" data-param="bh" data-digits="2" min="0.25" max="1" step="0.01" value="0.35"></label>
+          </div>
+          <div class="seg cone-presets" id="cone-presets" data-choice-group aria-label="Contents preset">
+            <button type="button" data-value="glassware" aria-pressed="true">Glassware μ 0.35</button>
+            <button type="button" data-value="porcelain">Porcelain μ 0.40</button>
+            <button type="button" data-value="lined">Lined μ 0.80</button>
+          </div>
+          <p class="small muted" style="margin-top:0.6rem">μ values are [UNCERTAIN] and are swept ±30 % in the run.</p>
+        </div>
+      </div>
+      <div class="fig-sub">Peak cone utilisation per item in the run (1 = slip onset)</div>
+      <div id="villa-contents"></div>
+      <p class="figure-caption">The only wording used for a zero count is "no Coulomb slip event in the sliding-block model"; it says nothing about chips, cracks or toppling.</p>
+    </div>
+
+    <div class="figure span-2">
+      <div class="figure-title">Compensation-stack waterfall <span data-tier="s" data-tier-note="FAB-EXA-009"></span></div>
+      <div id="villa-waterfall"></div>
+      <p class="figure-caption">Peak horizontal and vertical acceleration at each stage of the stack: ground → floor (building configuration) → drawer body (an x-only stage: the drawer acts along its rail, y is the floor's) → contents. Values come from the run; there are no illustrative bars.</p>
+      <div class="fig-sub">Paired runs, inertial smoothing on and off (seed 42) <span data-tier="r" data-tier-note="FAB-EXA-010"></span></div>
+      <div id="villa-ablation"></div>
+      <p class="figure-caption">The fixed-base building must show an x-slip reduction with smoothing on. On the isolated building the no-slip result is credited to the isolation, not to the smoothing; y-slip and rocking are reported as they come.</p>
+    </div>
+
+    <div class="figure">
+      <div class="figure-title">House DC bus power <span data-tier="s" data-tier-note="FAB-EXA-005"></span></div>
+      <div id="villa-bus"></div>
+      <p class="figure-caption" id="bus-caption">Choreographed moves are staggered, deadline-constrained and parallel, so the summed bus power (summed in device index order at every sync step) stays within the budget stated in the scene.</p>
+    </div>
+    <div class="figure">
+      <div class="figure-title">What each building does to the ground motion <span data-simulated="closed"></span></div>
+      <div id="villa-transfer"></div>
+      <p class="figure-caption">Closed-form transmissibility of the selected configuration against frequency: a fixed-base house amplifies near its own period, isolation filters above its isolation frequency. Illustrative parameters, stated in the legend (PHYSICS §21; EXOTIC §X9).</p>
+    </div>
+
+    <div class="figure span-2">
+      <div class="figure-title" id="villa-log-title">Devices and events</div>
+      <div class="table-wrap">
+        <table class="device-table" id="device-table">
+          <thead><tr><th scope="col">Device</th><th scope="col">Egress</th><th scope="col">Policy</th><th scope="col">Badge</th><th scope="col">Fidelity</th><th scope="col">Target rank</th><th scope="col" class="num">Deadline</th><th scope="col" class="num">Secured</th><th scope="col">Status and reason</th></tr></thead>
+          <tbody><tr><td colspan="9" class="muted">The device list is filled from the replay.</td></tr></tbody>
+        </table>
+      </div>
+      <ol class="event-log" id="event-log" aria-label="Event log"></ol>
+    </div>
+  </div>
+
+  <h2>How the house decides</h2>
+  <ul>
+    <li><strong>Only toward a higher rank.</strong> An alert may command motion only toward a higher SafetyRank (Seated or Landed+Locked &gt; Closed-levitated &gt; Standoff/Hold &gt; Frozen-open) and only in the closing or seating direction: no alert-initiated opening, unlocking, de-isolating or speeding up, and never a reversal of a user's own motion (FAB-EXA-006). <span data-tier="v"></span></li>
+    <li><strong>Independent confirmation.</strong> Alert-triggered motion needs a local P pick or at least two independent feeds; one network feed alone can only freeze, land or lock. <span data-tier="v"></span></li>
+    <li><strong>Unattended limits.</strong> Obstruction detection stays armed, one attempt only: a hand in a closing drawer is detected within 20 ms at no more than 150 N, the drawer does not re-close, it is marked NotSecured and the plan continues (FAB-EXA-011). <span data-tier="s"></span></li>
+    <li><strong>Egress stays open.</strong> The pantry door is on the egress path: it stops, lands and releases ASC, and never locks. The salon wall is off the egress path and lands and locks. <span data-tier="s"></span></li>
+    <li><strong>Seated drawers stay seated.</strong> A seated drawer never unseats on an alert. Inertial smoothing (following only the low-frequency floor motion) is research tier and only for drawers already open when the alert arrives (FAB-HAP-017 to 019). <span data-tier="r"></span></li>
+    <li><strong>Near field.</strong> At 15 km the S−P time is about 2.3 s: a drawer already gliding closed continues to its seat under unattended limits; one gliding open freezes within 100 ms and holds, never reversed (FAB-EXA-014). <span data-tier="s"></span></li>
+    <li><strong>Restore.</strong> Nothing re-opens until QUIET, a manual INSPECT reset and a local restore command; remote-only commands are rejected, and devices re-open one at a time on log-damped open termini (FAB-EXA-015). <span data-tier="v"></span></li>
+  </ul>
+
+  <div class="table-wrap">
+    <table class="words">
+      <caption class="small muted" style="text-align:left; caption-side: top; padding-bottom: 0.4rem;">The request's wording (quoted in SPECIFICATION_EXAMPLES §0.1) is realised only through these measurable definitions; residuals are reported next to the value they qualify.</caption>
+      <thead><tr><th scope="col">Word</th><th scope="col">Definition used on this page</th></tr></thead>
+      <tbody>
+        <tr><td>smooth</td><td>C² reference; peak jerk ≤ j<sub>max</sub>; arrival speed ≤ 1 mm/s; overshoot ≤ 0.02 mm (quiet conditions, floor below 0.01 g)</td></tr>
+        <tr><td>calculated</td><td>A deterministic plan computed at alert time; every deadline met or the miss reported with a reason; byte-identical replay</td></tr>
+        <tr><td>log-damped</td><td>During terminus capture the distance to go is d<sub>b</sub>·e<sup>−t/τ</sup>: a straight line of slope −1/τ on a semilog chart (R² ≥ 0.999; FAB-HAP-013)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout scope" role="note">
+    <p><strong>Scope, stated honestly.</strong></p>
+    <ul>
+      <li>This is a simulated replay: a synthetic ground motion through a building model, one-way coupled to the devices. Nothing here is a measurement.</li>
+      <li>The alert is synthetic/injected, not a live EEW feed; fabrail is not an early-warning provider, and near the source the warning is about zero.</li>
+      <li>The house choreographer is research tier and not a rated safety function; the land-first core behaviour is the default for every class.</li>
+      <li>Contents results come from a sliding-block model on a friction cone. A zero count is worded "no Coulomb slip event in the sliding-block model"; toppling, chipping and breakage are not modelled.</li>
+      <li>Hero devices run on the Carriage6 plant, the tier on which the simulator and the firmware image are claimed to run the same control code bit for bit (voltage coil mode); the other devices run on the Travel1d plant.</li>
+      <li>Floor prediction in the scene is an oracle (the building's own response); a deployed system would predict it from the alert through a ground-motion model.</li>
+      <li>Conventional isolation is a linear-equivalent model (🔶); HAVEN-F is a research-tier reduced platform (🧪). No building is levitated.</li>
+    </ul>
+    <p class="small">Run it yourself: <code>python -m fabrail example run villa_quake</code>, or <code>--variant near_field --building fixed_base</code> for the blind-zone case.</p>
+  </div>
+
+  <aside class="tier-legend" aria-label="Tier badges">
+    <strong>Tier badges</strong>
+    <ul>
+      <li><span class="badge badge--v">✅ V</span> verified in simulation</li>
+      <li><span class="badge badge--s">🔶 S</span> simplified model</li>
+      <li><span class="badge badge--r">🧪 R</span> research tier</li>
+      <li><span class="badge badge--m">🗺️ M</span> roadmap</li>
+      <li><span class="badge badge--f">🔭 frontier</span> overrides the badge: theoretical, never a product</li>
+    </ul>
+    <p>Technology maturity (TRL) is shown separately and never raises a badge. Badges follow <code>docs/SPECIFICATION.md</code> §0.5.</p>
+  </aside>
+</main>
+<footer class="site-footer">
+  <span>fabrail · MIT licence · simulation results, not hardware measurements</span>
+  <span class="selftest-badge" data-selftest data-state="pending">selftest: pending</span>
+</footer>
+<script src="assets/data/anchors.js"></script>
+<script src="assets/data/villa_run.js"></script>
+<script src="assets/js/nav.js"></script>
+<script src="assets/js/formulas.js"></script>
+<script src="assets/js/plot.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/engine.js"></script>
+<script src="assets/js/scene-villa.js"></script>
+</body>
+</html>

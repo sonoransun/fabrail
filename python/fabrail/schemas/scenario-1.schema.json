@@ -1,0 +1,1323 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fabrail:schema:scenario-1",
+  "title": "fabrail scenario v1 (fabrail.scenario/1)",
+  "description": "Mirror of crates/fabrail-sim/src/scenario.rs (the Rust model is authoritative; json_schema_matches_rust_model guards drift). Units are SI with unit suffixes. Cross-field rules the schema cannot express are enforced by ScenarioSpec::validate and check_compat: every event t_s <= duration_s; hand t_pts_s strictly increasing and as long as f_pts_n; lean 2*rise_s <= dur_s; smoke_dp 2*ramp_s <= dur_s; network_alert origin_t_s <= t_s; record.rate_hz a whole number of plant steps; plant.structure iff fidelity.model is 'structure'; rail_profile iff series.rail; the coil mode equals the parameters' control.rates.coil_mode_voltage; the initial position within the travel; the truth mass > 0 through every payload event; metrics windows within the run.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "name",
+    "duration_s",
+    "noise_seed",
+    "fidelity"
+  ],
+  "properties": {
+    "schema": {
+      "const": "fabrail.scenario/1"
+    },
+    "name": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]{1,64}$",
+      "description": "Scenario name."
+    },
+    "doc": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 4096,
+      "description": "Free-text description."
+    },
+    "duration_s": {
+      "type": "number",
+      "description": "Run length, s.",
+      "exclusiveMinimum": 0,
+      "maximum": 86400
+    },
+    "noise_seed": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615,
+      "description": "Seed of the Rust sensor-noise and fault-injection substreams (SeedSequence(seed).spawn(2)[1].generate_state(1, uint64)[0] from Python)."
+    },
+    "fidelity": {
+      "$ref": "#/$defs/fidelity"
+    },
+    "record": {
+      "$ref": "#/$defs/record"
+    },
+    "initial": {
+      "$ref": "#/$defs/initial"
+    },
+    "plant": {
+      "$ref": "#/$defs/plant"
+    },
+    "series": {
+      "$ref": "#/$defs/series"
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/event"
+      },
+      "description": "Timed events."
+    },
+    "metrics": {
+      "$ref": "#/$defs/metrics"
+    }
+  },
+  "$defs": {
+    "fidelity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model",
+        "coil"
+      ],
+      "description": "Model tier and coil mode. The coil mode has a single source (this block); a parameter set whose control.rates.coil_mode_voltage disagrees is rejected (plan §2b item 16). SIL == firmware is claimed in voltage mode only.",
+      "properties": {
+        "model": {
+          "enum": [
+            "carriage6",
+            "heave1",
+            "travel1d",
+            "structure"
+          ],
+          "description": "Plant tier: carriage6 (50 us), heave1 (50 us), travel1d (1 ms), structure (1 ms)."
+        },
+        "coil": {
+          "enum": [
+            "lag",
+            "voltage"
+          ],
+          "description": "Coil mode: lag (current-loop lag, sim-only) or voltage (flux-linkage ODE)."
+        },
+        "eddy_lag": {
+          "type": "boolean",
+          "description": "Model the eddy lag on the force flux.",
+          "default": true
+        },
+        "kinematic_heave": {
+          "type": "boolean",
+          "description": "travel1d only: emulate heave kinematically so LAND/SEAT complete (plan §2b item 16).",
+          "default": true
+        }
+      }
+    },
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Recording. 20000 / rate_hz must be a whole number of plant steps (travel1d/structure: a multiple of 20 base ticks).",
+      "properties": {
+        "rate_hz": {
+          "type": "number",
+          "description": "Recording rate, Hz.",
+          "exclusiveMinimum": 0,
+          "maximum": 20000,
+          "default": 1000
+        },
+        "channels": {
+          "description": "'default', 'kpis_only' or an explicit, non-empty list of unique channel names.",
+          "default": "default",
+          "oneOf": [
+            {
+              "enum": [
+                "default",
+                "kpis_only"
+              ]
+            },
+            {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,63}$"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "initial": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Initial condition; null fields resolve from the parameter set.",
+      "properties": {
+        "lev": {
+          "enum": [
+            "seated",
+            "landed",
+            "levitated",
+            null
+          ],
+          "description": "Vertical rest condition; null = the class rest state (rest_policy seat -> seated, hover -> levitated, land/land_lock -> landed). 'seated' needs a captive seat."
+        },
+        "x_m": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Travel position (absolute rail coordinate), m; null = the closed stop design.rail.x_closed_m. Must lie within [x_closed, x_closed + travel]."
+        },
+        "v_mps": {
+          "type": "number",
+          "description": "Travel velocity, m/s.",
+          "minimum": -10,
+          "maximum": 10,
+          "default": 0
+        },
+        "payload_kg": {
+          "type": "number",
+          "description": "Payload at t = 0, kg (negative allowed; truth mass = plant.mass_scale * m_star + payload_kg must stay > 0).",
+          "minimum": -100000.0,
+          "maximum": 100000.0,
+          "default": 0
+        },
+        "temp_c": {
+          "type": "number",
+          "description": "Initial temperature of every thermal node and the ambient, degC.",
+          "minimum": -40,
+          "maximum": 150,
+          "default": 20
+        },
+        "locked": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Parking lock engaged at t = 0; null = engaged iff rest_policy is land_lock and the carriage starts landed. true needs a parking lock."
+        }
+      }
+    },
+    "structure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "storey_mass_kg",
+        "storey_k_n_per_m",
+        "device_storey"
+      ],
+      "description": "n-storey shear building for fidelity.model 'structure' (PHYSICS §21). Arrays have one entry per storey (bottom to top).",
+      "properties": {
+        "storey_mass_kg": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10,
+          "items": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "description": "Storey masses, kg."
+        },
+        "storey_k_n_per_m": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10,
+          "items": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "description": "Storey shear stiffnesses, N/m."
+        },
+        "rayleigh_zeta": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "number",
+            "minimum": 0,
+            "exclusiveMaximum": 1
+          },
+          "default": [
+            0.02,
+            0.02
+          ],
+          "description": "Rayleigh damping ratios of modes 1 and 2 (one storey: c = 2*zeta1*sqrt(k*m))."
+        },
+        "device_storey": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10,
+          "description": "Storey carrying the device, 1-based (<= number of storeys)."
+        }
+      }
+    },
+    "plant": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Truth-vs-nominal perturbations and environment. null overrides mean 'the design value'.",
+      "properties": {
+        "mass_scale": {
+          "type": "number",
+          "description": "Body mass scale (truth m_body = mass_scale * m_star).",
+          "exclusiveMinimum": 0,
+          "maximum": 10,
+          "default": 1
+        },
+        "br_scale": {
+          "type": "number",
+          "description": "Magnet remanence scale.",
+          "exclusiveMinimum": 0,
+          "maximum": 10,
+          "default": 1
+        },
+        "leak_sigma": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Flux leakage sigma_leak override (0 ideal; 0.25 in sensitivity studies only).",
+          "minimum": 0,
+          "exclusiveMaximum": 1
+        },
+        "c_rail_n_s_per_m": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Rail eddy drag override [UNCERTAIN, swept], N*s/m.",
+          "minimum": 0
+        },
+        "f_hyst_n": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Rail hysteresis drag override [UNCERTAIN, swept], N.",
+          "minimum": 0
+        },
+        "leak_area_m2": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "DRAWER cavity leak area override, m^2.",
+          "minimum": 0
+        },
+        "rail_profile": {
+          "enum": [
+            "series:rail",
+            null
+          ],
+          "description": "'series:rail' iff series.rail is declared (the rail irregularity profile); null = ideal rail."
+        },
+        "structure": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/structure"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Required with fidelity.model 'structure', rejected otherwise."
+        }
+      }
+    },
+    "accel_series": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "axis",
+        "fs_hz",
+        "channels"
+      ],
+      "description": "Time series of acceleration, m/s^2 (rail frame: x travel, y cross-track, z up). Bytes: channel-major little-endian f64, >= 2 samples per channel, finite. Outside its span it reads 0.",
+      "properties": {
+        "axis": {
+          "const": "time"
+        },
+        "fs_hz": {
+          "type": "number",
+          "description": "Sample rate, Hz.",
+          "exclusiveMinimum": 0
+        },
+        "t0_s": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Time of sample 0 (default 0), s."
+        },
+        "dx_m": {
+          "type": "null"
+        },
+        "x0_m": {
+          "type": "null"
+        },
+        "channels": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "ax",
+              "ay",
+              "az"
+            ]
+          },
+          "description": "Any non-empty subset in byte order; a missing channel reads 0."
+        }
+      }
+    },
+    "rail_series": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "axis",
+        "dx_m",
+        "channels"
+      ],
+      "description": "Rail irregularity on a uniform x grid, m (z up, y cross-track), e.g. from fabrail.rail.irregularity_profile. Bytes: channel-major little-endian f64, >= 2 samples per channel. Edge-held outside its span.",
+      "properties": {
+        "axis": {
+          "const": "space"
+        },
+        "dx_m": {
+          "type": "number",
+          "description": "Grid spacing (1 mm nominal), m.",
+          "exclusiveMinimum": 0
+        },
+        "x0_m": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Coordinate of sample 0 (default 0), m."
+        },
+        "fs_hz": {
+          "type": "null"
+        },
+        "t0_s": {
+          "type": "null"
+        },
+        "channels": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "z",
+              "y"
+            ]
+          }
+        }
+      }
+    },
+    "series": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Series declarations by role; the bytes travel separately (Scenario.from_json(spec, {name: bytes})). Every declared series needs bytes and every byte buffer a declaration. There is no accel_node series: the structure ADXL355 signal is floor + site + sensor noise.",
+      "properties": {
+        "floor": {
+          "$ref": "#/$defs/accel_series",
+          "description": "Floor (rail) acceleration at the device."
+        },
+        "site": {
+          "$ref": "#/$defs/accel_series",
+          "description": "Site noise added to the structure accelerometer only (footsteps, slams, HVAC, self-actuation)."
+        },
+        "rail": {
+          "$ref": "#/$defs/rail_series",
+          "description": "Rail irregularity profile (referenced by plant.rail_profile)."
+        }
+      }
+    },
+    "impedance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "m_kg",
+        "b_n_s_per_m",
+        "k_n_per_m"
+      ],
+      "description": "Arm impedance (core design §C.5: m 1-2 kg, b 5-20 N*s/m, k 200-1000 N/m).",
+      "default": {
+        "m_kg": 1.5,
+        "b_n_s_per_m": 10,
+        "k_n_per_m": 500
+      },
+      "properties": {
+        "m_kg": {
+          "type": "number",
+          "description": "Arm effective mass, kg.",
+          "minimum": 0.001,
+          "maximum": 20
+        },
+        "b_n_s_per_m": {
+          "type": "number",
+          "description": "Arm damping, N*s/m.",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "k_n_per_m": {
+          "type": "number",
+          "description": "Arm stiffness, N/m.",
+          "minimum": 0,
+          "maximum": 100000
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "KPI windows.",
+      "properties": {
+        "windows": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9_]{0,63}$"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "description": "Named windows [t0_s, t1_s] with 0 <= t0 < t1 <= duration_s."
+        }
+      }
+    },
+    "event": {
+      "description": "One timed event, selected by 'kind'. Events apply in time order; ties keep document order.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/ev_command"
+        },
+        {
+          "$ref": "#/$defs/ev_hand"
+        },
+        {
+          "$ref": "#/$defs/ev_payload"
+        },
+        {
+          "$ref": "#/$defs/ev_obstacle"
+        },
+        {
+          "$ref": "#/$defs/ev_lean"
+        },
+        {
+          "$ref": "#/$defs/ev_smoke_dp"
+        },
+        {
+          "$ref": "#/$defs/ev_piston"
+        },
+        {
+          "$ref": "#/$defs/ev_temp_ramp"
+        },
+        {
+          "$ref": "#/$defs/ev_power_loss"
+        },
+        {
+          "$ref": "#/$defs/ev_control_loss"
+        },
+        {
+          "$ref": "#/$defs/ev_fault"
+        },
+        {
+          "$ref": "#/$defs/ev_network_alert"
+        },
+        {
+          "$ref": "#/$defs/ev_alert_cancel"
+        },
+        {
+          "$ref": "#/$defs/ev_reset"
+        },
+        {
+          "$ref": "#/$defs/ev_core_fault"
+        },
+        {
+          "$ref": "#/$defs/ev_presence"
+        },
+        {
+          "$ref": "#/$defs/ev_hold_to_run"
+        },
+        {
+          "$ref": "#/$defs/ev_fire_alarm"
+        },
+        {
+          "$ref": "#/$defs/ev_estop"
+        }
+      ]
+    },
+    "ev_command": {
+      "type": "object",
+      "description": "A user command on the command link (UserCommand).",
+      "properties": {
+        "kind": {
+          "const": "command"
+        },
+        "t_s": {
+          "type": "number",
+          "description": "Absolute scenario time of the event, s (0 <= t_s <= duration_s).",
+          "minimum": 0
+        },
+        "cmd": {
+          "enum": [
+            "open",
+            "close",
+            "go_to",
+            "stop",
+            "lift",
+            "land",
+            "reset",
+            "manual"
+          ],
+          "description": "Command. 'reset' is the operator's FAULT/INSPECT reset; controller reboots are the 'reset' event kind."
+        },
+        "x_m": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Target rail position for cmd 'go_to' (required there, rejected otherwise), m."
+        }
+      },
+      "required": [
+        "kind",
+        "t_s",
+        "cmd"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "cmd": {
+                "const": "go_to"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "x_m"
+            ],
+            "properties": {
+              "x_m": {
+                "type": "number"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "x_m": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "ev_hand": {
+      "type": "object",
+      "description": "A hand grips/pushes the front: piecewise-linear driving force through the arm impedance; the hand releases after the last point.",
+      "properties": {
+        "kind": {
+          "const": "hand"
+        },
+        "t_s": {
+          "type": "number",
+          "description": "Absolute scenario time of the event, s (0 <= t_s <= duration_s).",
+          "minimum": 0
+        },
+        "t_pts_s": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "number",
+            "minimum": 0
+          },
+          "description": "Profile times relative to t_s, strictly increasing, s. Same length as f_pts_n."
+        },
+        "f_pts_n": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "number",
+            "minimum": -2000,
+            "maximum": 2000
+          },
+          "description": "Driving force at each profile time (+x opens), N."
+        },
+        "impedance": {
+          "$ref": "#/$defs/impedance"
+        },
+        "contact": {
+          "enum": [
+            "grip",
+            "push"
+          ],
+          "description": "Grip (can pull) or push-only contact (separates when the body moves away; push-to-open).",
+          "default": "grip"
+        }
+      },
+      "required": [
+        "kind",
+        "t_s",
+        "t_pts_s",
+        "f_pts_n"
+      ],
+      "additionalProperties": false
+    },
+    "ev_payload": {
+      "type": "object",
+      "description": "Payload added (negative: removed); the truth mass must stay > 0.",
+      "properties": {
+        "kind": {
+          "const": "payload"
+        },
+        "t_s": {
+          "type": "number",
+          "description": "Absolute scenario time of the event, s (0 <= t_s <= duration_s).",
+          "minimum": 0
+        },
+        "delta_kg": {
+          "type": "number",
+          "description": "Mass change, kg.",
+          "minimum": -100000.0,
+          "maximum": 100000.0
+        }
+      },
+      "required": [
+        "kind",
+        "t_s",
+        "delta_kg"
+      ],
+      "additionalProperties": false
+    },
+    "ev_obstacle": {
+      "type": "object",
+      "description": "An ISO/TS 15066 body region appears in the closing path.",
+      "properties": {
+        "kind": {
+          "const": "obstacle"
+        },
+        "t_s": {
+          "type": "number",
+          "description": "Absolute scenario time of the event, s (0 <= t_s <= duration_s).",
+          "minimum": 0
+        },
+        "body": {
+          "enum": [
+            "chest",
+            "hand",
+            "face",
+            "leg"
+          ],
+          "description": "Body region (hand 75 N/mm 0.6 kg; chest 25 N/mm 40 kg; face 75 N/mm 4.4 kg; leg 60 N/mm)."
+        },
+        "x_m": {
+          "type": "number",
+          "description": "Rail position of the body surface, m."
+        },
+        "config": {
+          "enum": [
+            "clamped",
+            "free"
+          ],
+          "description": "Clamped against a rigid backing, or free to be pushed."
+        },
+        "k_edge_n_per_m": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Closing-edge seal stiffness override (default design.damping.k_edge_n_per_m), N/m.",
+          "exclusiveMinimum": 0
+        },
+        "dur_s": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Presence duration (default: until the end), s.",
+          "exclusiveMinimum": 0
+        }
+      },
+      "required": [
+        "kind",
+        "t_s",
+        "body",
+        "x_m",
+        "config"
+      ],
+      "additionalProperties": false
+    },
+    "ev_lean": {
+      "type": "object",
+      "description": "A person leans on the front: symmetric trapezoid rising over rise_s to f_n and back to 0 at t_s + dur_s (plan §2b item 11: rise >= 1 s is the specified disturbance profile). Requires 2*rise_s <= dur_s.",
+      "properties": {
+        "kind": {
+          "const": "lean"
+        },
+        "t_s": {
+          "type": "number",
+          "description": "Absolute scenario time of the event, s (0 <= t_s <= duration_s).",
+          "minimum": 0
+        },
+        "f_n": {
+          "type": "number",
+          "description": "Plateau force along x, N.",
+          "minimum": -2000,
+          "maximum": 2000
+        },
+        "dur_s": {
+          "type": "number",
+          "description": "Total duration, s.",
+          "exclusiveMinimum": 0
+        },
+        "rise_s": {
+          "type": "number",
+          "description": "Ramp time, s.",
+          "minimum": 0,
+          "default": 1.0
+        }
+      },
+      "required": [
+        "kind",
+        "t_s",
+        "f_n",
+        "dur_s"
+      ],
+      "additionalProperties": false
+    },
+    "ev_smoke_dp": {
+      "type": "object",
+      "description": "Smoke-control / cabinet pressure difference on the leaf/front (positive pushes toward +x): ramps over ramp_s, holds, and ramps back over ramp_s ending at t_s + dur_s when dur_s is given (plan §2b item 11: ramp >= 2 s). Requires 2*ramp_s <= dur_s.",
+      "properties": {
+        "kind": {
+          "const": "smoke_dp"
+        },
+        "t_s": {
+          "type": "number",
+          "description": "Absolute scenario time of the event, s (0 <= t_s <= duration_s).",
+          "minimum": 0
+        },
+        "dp_pa": {
+          "type": "number",
+          "description": "Plateau pressure difference, Pa.",
+          "minimum": -1000,
+          "maximum": 1000
+        },
+        "ramp_s": {
+          "type": "number",
+          "description": "Ramp time, s.",
+          "minimum": 0,
+          "maximum": 3600,
+          "default": 2.0
+        },
+        "dur_s": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Total duration (default: until the end), s.",
+          "exclusiveMinimum": 0
+        }
+      },
+      "required": [
+        "kind",
+        "t_s",
+        "dp_pa"
+      ],
+      "additionalProperties": false
+    },
+    "ev_piston": {
+      "type": "object",
+      "description": "The DRAWER cavity leak area changes (piston-pulse tests).",
+      "properties": {
+        "kind": {
+          "const": "piston"
+        },
+        "t_s": {
+          "type": "number",
+          "description": "Absolute scenario time of the event, s (0 <= t_s <= duration_s).",
+          "minimum": 0
+        },
+        "leak_area_m2": {
+          "type": "number",
+          "description": "New leak area, m^2.",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "kind",
+        "t_s",
+        "leak_area_m2"
+      ],
+      "additionalProperties": false
+    },
+    "ev_temp_ramp": {
+      "type": "object",
+      "description": "The ambient temperature ramps linearly by dt_k over dur_s (0 = step).",
+      "properties": {
+        "kind": {
+          "const": "temp_ramp"
+        },
+        "t_s": {
+          "type": "number",
+          "description": "Absolute scenario time of the event, s (0 <= t_s <= duration_s).",
+          "minimum": 0
+        },
+        "dt_k": {
+          "type": "number",
+          "description": "Temperature change, K.",
+          "minimum": -150,
+          "maximum": 150
+        },
+        "dur_s": {
+          "type": "number",
+          "description": "Ramp duration, s.",
+          "minimum": 0,
+          "maximum": 86400
+        }
+      },
+      "required": [
+        "kind",
+        "t_s",
+        "dt_k",
+        "dur_s"
+      ],
+      "additionalProperties": false
+    },
+    "ev_power_loss": {
+      "type": "object",
+      "description": "Mains lost (the bus runs from the hold-up supercap); restored after dur_s if given.",
+      "properties": {
+        "kind": {
+          "const": "power_loss"
+        },
+        "t_s": {
+          "type": "number",
+          "description": "Absolute scenario time of the event, s (0 <= t_s <= duration_s).",
+          "minimum": 0
+        },
+        "dur_s": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Outage duration (default: until the end), s.",
+          "exclusiveMinimum": 0
+        }
+      },
+      "required": [
+        "kind",
+        "t_s"
+      ],
+      "additionalProperties": false
+    },
+    "ev_control_loss": {
+      "type": "object",
+      "description": "The coil drivers stick at full output (fail-direction tests): up = full attraction, down = full release.",
+      "properties": {
+        "kind": {
+          "const": "control_loss"
+        },
+        "t_s": {
+          "type": "number",
+          "description": "Absolute scenario time of the event, s (0 <= t_s <= duration_s).",
+          "minimum": 0
+        },
+        "dir": {
+          "enum": [
+            "up",
+            "down"
+          ],
+          "description": "Direction."
+        }
+      },
+      "required": [
+        "kind",
+        "t_s",
+        "dir"
+      ],
+      "additionalProperties": false
+    },
+    "ev_fault": {
+      "type": "object",
+      "description": "A sensor or driver fault applied by SimBoard.",
+      "properties": {
+        "kind": {
+          "const": "fault"
+        },
+        "t_s": {
+          "type": "number",
+          "description": "Absolute scenario time of the event, s (0 <= t_s <= duration_s).",
+          "minimum": 0
+        },
+        "what": {
+          "enum": [
+            "coil_driver",
+            "lsm_driver",
+            "gap_stuck",
+            "gap_lost",
+            "encoder_jump",
+            "encoder_lost",
+            "accel_stuck",
+            "accel_lost",
+            "imu_lost",
+            "rail_accel_lost"
+          ],
+          "description": "Fault. coil_driver/gap_stuck/gap_lost: ch = magnet 0-7; lsm_driver/accel_stuck/imu_lost/rail_accel_lost: ch = phase/axis 0-2; encoder_jump/encoder_lost/accel_lost: ch = 0."
+        },
+        "ch": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 7,
+          "default": 0,
+          "description": "Channel (magnet index, axis or phase)."
+        },
+        "jump_m": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Encoder jump for what 'encoder_jump' only (default 1 mm), m. Non-zero, |jump| <= 100 m.",
+          "minimum": -100,
+          "maximum": 100
+        }
+      },
+      "required": [
+        "kind",
+        "t_s",
+        "what"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "what": {
+                "enum": [
+                  "lsm_driver",
+                  "accel_stuck",
+                  "imu_lost",
+                  "rail_accel_lost"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "ch": {
+                "maximum": 2
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "what": {
+                "enum": [
+                  "encoder_jump",
+                  "encoder_lost",
+                  "accel_lost"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "ch": {
+                "const": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "what": {
+                "const": "encoder_jump"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "jump_m": {
+                "not": {
+                  "const": 0
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "jump_m": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "ev_network_alert": {
+      "type": "object",
+      "description": "A synthetic/injected network earthquake alert arrives on the alert link (fabrail is not an EEW provider; not a live feed). Requires origin_t_s <= t_s.",
+      "properties": {
+        "kind": {
+          "const": "network_alert"
+        },
+        "t_s": {
+          "type": "number",
+          "description": "Absolute scenario time of the event, s (0 <= t_s <= duration_s).",
+          "minimum": 0
+        },
+        "magnitude": {
+          "type": "number",
+          "description": "Moment magnitude estimate.",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "r_epi_km": {
+          "type": "number",
+          "description": "Epicentral distance, km.",
+          "minimum": 0,
+          "maximum": 20000
+        },
+        "depth_km": {
+          "type": "number",
+          "description": "Hypocentral depth, km.",
+          "minimum": 0,
+          "maximum": 700
+        },
+        "origin_t_s": {
+          "type": "number",
+          "description": "Origin time as absolute scenario time (may be negative), s."
+        },
+        "mmi": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Predicted site intensity (MMI); absent = unknown (sent as 0).",
+          "minimum": 1,
+          "maximum": 12
+        },
+        "id": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 4294967295,
+          "description": "Alert id (default: 1-based order among the scenario's network alerts); updates reuse the id."
+        }
+      },
+      "required": [
+        "kind",
+        "t_s",
+        "magnitude",
+        "r_epi_km",
+        "depth_km",
+        "origin_t_s"
+      ],
+      "additionalProperties": false
+    },
+    "ev_alert_cancel": {
+      "type": "object",
+      "description": "Cancels alert id (default: the most recent alert).",
+      "properties": {
+        "kind": {
+          "const": "alert_cancel"
+        },
+        "t_s": {
+          "type": "number",
+          "description": "Absolute scenario time of the event, s (0 <= t_s <= duration_s).",
+          "minimum": 0
+        },
+        "id": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 4294967295,
+          "description": "Alert id."
+        }
+      },
+      "required": [
+        "kind",
+        "t_s"
+      ],
+      "additionalProperties": false
+    },
+    "ev_reset": {
+      "type": "object",
+      "description": "The controller reboots (BOOT -> SELFTEST; the plant keeps its state). The operator reset is command/reset.",
+      "properties": {
+        "kind": {
+          "const": "reset"
+        },
+        "t_s": {
+          "type": "number",
+          "description": "Absolute scenario time of the event, s (0 <= t_s <= duration_s).",
+          "minimum": 0
+        },
+        "cause": {
+          "enum": [
+            "software",
+            "watchdog",
+            "brown_out",
+            "pin",
+            "crash"
+          ],
+          "description": "Reset cause reported by the watchdog HAL (crash: boot goes to FAULT).",
+          "default": "software"
+        }
+      },
+      "required": [
+        "kind",
+        "t_s"
+      ],
+      "additionalProperties": false
+    },
+    "ev_core_fault": {
+      "type": "object",
+      "description": "Core-output fault injection before the monitor (rt feature fault-injection).",
+      "properties": {
+        "kind": {
+          "const": "core_fault"
+        },
+        "t_s": {
+          "type": "number",
+          "description": "Absolute scenario time of the event, s (0 <= t_s <= duration_s).",
+          "minimum": 0
+        },
+        "what": {
+          "enum": [
+            "iq_gain_x3",
+            "gap_sign",
+            "nan"
+          ],
+          "description": "Perturbation."
+        },
+        "dur_s": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Duration (default: until the end), s.",
+          "exclusiveMinimum": 0
+        }
+      },
+      "required": [
+        "kind",
+        "t_s",
+        "what"
+      ],
+      "additionalProperties": false
+    },
+    "ev_presence": {
+      "type": "object",
+      "description": "Presence-sensing input (SafetyInRaw.presence_active / presence_ok).",
+      "properties": {
+        "kind": {
+          "const": "presence"
+        },
+        "t_s": {
+          "type": "number",
+          "description": "Absolute scenario time of the event, s (0 <= t_s <= duration_s).",
+          "minimum": 0
+        },
+        "active": {
+          "type": "boolean",
+          "description": "A person is in the protected zone."
+        },
+        "ok": {
+          "type": "boolean",
+          "description": "Device healthy (OSSD pair consistent).",
+          "default": true
+        }
+      },
+      "required": [
+        "kind",
+        "t_s",
+        "active"
+      ],
+      "additionalProperties": false
+    },
+    "ev_hold_to_run": {
+      "type": "object",
+      "description": "Hold-to-run input line (SafetyInRaw.hold_to_run).",
+      "properties": {
+        "kind": {
+          "const": "hold_to_run"
+        },
+        "t_s": {
+          "type": "number",
+          "description": "Absolute scenario time of the event, s (0 <= t_s <= duration_s).",
+          "minimum": 0
+        },
+        "on": {
+          "type": "boolean",
+          "description": "Actuated."
+        }
+      },
+      "required": [
+        "kind",
+        "t_s",
+        "on"
+      ],
+      "additionalProperties": false
+    },
+    "ev_fire_alarm": {
+      "type": "object",
+      "description": "Building fire-alarm input (SafetyInRaw.fire_alarm).",
+      "properties": {
+        "kind": {
+          "const": "fire_alarm"
+        },
+        "t_s": {
+          "type": "number",
+          "description": "Absolute scenario time of the event, s (0 <= t_s <= duration_s).",
+          "minimum": 0
+        },
+        "active": {
+          "type": "boolean",
+          "description": "Alarm active."
+        }
+      },
+      "required": [
+        "kind",
+        "t_s",
+        "active"
+      ],
+      "additionalProperties": false
+    },
+    "ev_estop": {
+      "type": "object",
+      "description": "Emergency-stop input (SafetyInRaw.estop).",
+      "properties": {
+        "kind": {
+          "const": "estop"
+        },
+        "t_s": {
+          "type": "number",
+          "description": "Absolute scenario time of the event, s (0 <= t_s <= duration_s).",
+          "minimum": 0
+        },
+        "active": {
+          "type": "boolean",
+          "description": "Pressed."
+        }
+      },
+      "required": [
+        "kind",
+        "t_s",
+        "active"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

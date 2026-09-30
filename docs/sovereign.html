@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sovereign · fabrail</title>
+<meta name="description" content="The Sovereign/Exotic tier: tower mass dampers, isolation platforms, pod-borne trays, vault doors and tide gates, and the physics bounds that remain when cost is no object.">
+<meta name="color-scheme" content="dark light">
+<script src="assets/js/theme.js"></script>
+<link rel="stylesheet" href="assets/css/site.css">
+<style>
+/* sovereign (owner W4). Under reduced motion every animation on this page falls back to
+   a static keyframe; each scene has a Play button and every control still works. */
+@media (prefers-reduced-motion: reduce) {
+  .scene *, .scene *::before, .scene *::after,
+  .stage *, .stage *::before, .stage *::after { animation: none !important; transition: none !important; }
+}
+
+.sov-section { max-width: none; margin-top: 3rem; padding-top: 0.4rem; border-top: 1px solid var(--hair); }
+.sov-section > h2 { margin-top: 0.8rem; }
+.sov-section > p, .sov-section > ul { max-width: var(--measure); }
+.sov-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.8rem; }
+.sov-head .badge { font-size: 0.72rem; }
+.sov-meta { font-family: var(--font-sans); font-size: 0.8rem; color: var(--ink-3); }
+.sov-grid { display: grid; gap: 1rem; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); align-items: start; margin-top: 1rem; }
+.sov-grid > .figure, .sov-grid > .stage { margin-top: 0; }
+.sov-stage canvas { height: clamp(260px, 30vw, 360px); }
+.stage-controls .slider { min-width: 11rem; flex: 1 1 11rem; grid-template-columns: 1fr auto; }
+.class-table { min-width: 46rem; }
+.sov-section .table-wrap > table { min-width: 36rem; }
+.class-table td { vertical-align: top; }
+.class-table td:first-child { white-space: nowrap; font-weight: 600; }
+.class-table .badge { font-size: 0.72rem; }
+.class-table a.badge-link { text-decoration: none; }
+.verdict { margin-top: 0.8rem; padding: 0.7rem 0.9rem; border-radius: var(--radius); font-family: var(--font-sans); font-size: 0.9rem; border: 1px solid var(--line); background: var(--bg-panel); }
+.verdict[data-state="ok"] { border-color: var(--good); }
+.verdict[data-state="no"] { border-color: var(--plot-ref); }
+.verdict strong[data-state="ok"] { color: var(--good); }
+.verdict strong[data-state="no"] { color: var(--plot-ref); }
+.calc { display: grid; gap: 0.6rem 1.2rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr)); font-family: var(--font-sans); font-size: 0.86rem; margin-top: 0.8rem; }
+.calc label.pick { display: grid; gap: 0.25rem; color: var(--ink-2); }
+.calc select { font: inherit; color: var(--ink); background: var(--bg-elev); border: 1px solid var(--line); border-radius: 6px; padding: 0.35rem 0.5rem; min-height: 36px; }
+.calc input[type="checkbox"] { accent-color: var(--accent); width: 18px; height: 18px; vertical-align: -3px; margin-right: 0.35rem; }
+.ladder { list-style: none; padding: 0; margin: 0.8rem 0 0; display: flex; flex-wrap: wrap; gap: 0.4rem; font-family: var(--font-sans); font-size: 0.84rem; }
+.ladder li { margin: 0; padding: 0.45rem 0.75rem; border-radius: 6px; border: 1px solid var(--line); color: var(--ink-3); background: var(--bg-panel); }
+.ladder li + li { margin-top: 0; }
+.ladder li[aria-current="step"] { color: var(--ink); border-color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent); }
+.ladder li[data-safe][aria-current="step"] { border-color: var(--plot-ref); box-shadow: inset 0 -2px 0 var(--plot-ref); }
+.voter-out { font-family: var(--font-mono); font-size: 0.86rem; color: var(--ink); margin-top: 0.6rem; }
+.dg { width: 100%; height: auto; display: block; margin-top: 0.6rem; font-family: var(--font-sans); }
+.dg .box { fill: var(--bg-elev); stroke: var(--line); stroke-width: 1.2; }
+.dg .box-a { fill: var(--bg-elev); stroke: var(--s1); stroke-width: 1.6; }
+.dg .box-b { fill: var(--bg-elev); stroke: var(--s3); stroke-width: 1.6; }
+.dg .box-c { fill: var(--bg-elev); stroke: var(--s4); stroke-width: 1.6; }
+.dg .box-out { fill: var(--bg-panel); stroke: var(--plot-ref); stroke-width: 1.4; }
+.dg .box-land { fill: var(--bg-panel); stroke: var(--ink-3); stroke-width: 1.2; stroke-dasharray: 4 3; }
+.dg .t { fill: var(--ink); font-size: 12.5px; font-weight: 600; }
+.dg .s { fill: var(--ink-2); font-size: 11px; }
+.dg .m { fill: var(--ink-3); font-size: 10.5px; }
+.dg .wire { stroke: var(--ink-3); stroke-width: 1.4; fill: none; }
+.dg .link { stroke: var(--accent); stroke-width: 1.6; fill: none; stroke-dasharray: 6 4; }
+.dg .arrow { fill: var(--ink-3); }
+.pod-canvas { width: 100%; height: clamp(220px, 30vw, 330px); display: block; border-radius: 6px; cursor: crosshair; background: var(--bg-deep); touch-action: manipulation; }
+.pod-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 1rem; margin-top: 0.4rem; font-family: var(--font-sans); font-size: 0.78rem; color: var(--ink-3); }
+.pod-ramp { display: inline-block; width: 120px; height: 10px; border-radius: 3px; vertical-align: middle; }
+.runs { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); margin-top: 1rem; }
+.runs .figure { margin-top: 0; }
+.kv { width: 100%; font-size: 0.8rem; }
+.kv td.num { text-align: right; }
+@media (max-width: 900px) {
+  .sov-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .sov-stage canvas { height: clamp(240px, 70vw, 340px); }
+  .sov-stage .stage-chip { position: static; display: block; margin: 0.6rem 0.6rem 0; border-radius: 8px; }
+}
+</style>
+</head>
+<body data-page="sovereign">
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <a class="wordmark" href="index.html" aria-label="fabrail home">FAB<span>·</span>RAIL</a>
+  <nav class="site-nav" aria-label="Site pages" data-site-nav>
+    <a href="index.html">Overview</a>
+    <a href="levitate.html">Levitate</a>
+    <a href="glide.html">Glide</a>
+    <a href="touch.html">Touch</a>
+    <a href="quake.html">Quake</a>
+    <a href="villa.html">Villa</a>
+    <a href="sovereign.html">Sovereign</a>
+    <a href="frontier.html">Frontier</a>
+    <a href="examples.html">Examples</a>
+  </nav>
+  <button class="theme-btn" type="button" data-theme-toggle aria-label="Toggle colour theme" title="Toggle colour theme">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"></path></svg>
+  </button>
+</header>
+<main id="main" class="page">
+  <p class="eyebrow">Sovereign tier</p>
+  <h1>When cost is no object, physics still sets the limits.</h1>
+  <p class="lede">An unlimited budget buys margin, redundancy, better materials and more storage. It does not move the magnetic-pressure ceiling, the stroke bound on a damper, the warning time a sensor can buy, or the distance a blast needs to arrive late.</p>
+  <div class="banner research" role="note"><span class="badge badge--r">🧪 R</span> Research tier. Architectures are designed toward safety-integrity targets; no certification at any SIL or PL is claimed. Every alert is synthetic or injected. Each class carries its badge and, separately, its technology maturity.</div>
+
+  <div class="callout scope" role="note" id="non-claims">
+    <p><strong>Not claimed on this page.</strong></p>
+    <ul>
+      <li>No certification at any SIL or PL. Ferrocene qualification of a compiler target does not certify an application, and one lockstep chip is SIL 3 at most.</li>
+      <li>Mass dampers are mainly wind devices: at design-level shaking they add at most about 0.7 % damping, and none acts before the first half-cycle of a near-fault pulse.</li>
+      <li>No maglev vertical isolation, no whole-building levitation; isolation platforms have no ASCE 7 Ch. 17 prototype tests and no code path, and the moat edge is a shear hazard.</li>
+      <li>No yield-to-distance blast tables and no scaled-distance law; fabrail is not a protective-design tool. The blast arrival time is always an input.</li>
+      <li>Tsunami timing only, no inundation modelling; buoyant and hydraulic gates beat maglev physically.</li>
+      <li>fabrail is not an early-warning provider; every feed is synthetic, and near the source the warning is about zero.</li>
+      <li>Simulation is not validation: no hardware, no FEM, and the storage, PFH and hover-loss rates are placeholders or closed forms.</li>
+    </ul>
+  </div>
+
+  <section class="sov-section" id="classes" aria-labelledby="classes-title">
+    <h2 id="classes-title">Nine classes, safe by separation</h2>
+    <p>At 500 t the pedestrian caps allow only 2.6 mm/s (1.69 J) or 0.045 mm/s (22.3 kg·m/s), so a sovereign mover cannot be safe by being slow. It is safe by keeping people out of reach while it moves (a guarded zone with PL e presence sensing, interlocks and ISO 13855 separation) or by carrying them within comfort limits (an occupied platform). The badge is fabrail's status; maturity is the technology's readiness in the world and never raises the badge.</p>
+    <div class="table-wrap">
+      <table class="class-table">
+        <thead><tr><th scope="col">Class</th><th scope="col">Design mass</th><th scope="col">Regime / safe state</th><th scope="col">Badge</th><th scope="col">Maturity</th><th scope="col">This effort</th></tr></thead>
+        <tbody>
+          <tr><td><a href="#sentinel">SENTINEL</a></td><td>1,000 t, ±1.5 m, T 7 s</td><td>guarded zone / ride-through</td><td><span class="badge badge--r">🧪 R</span></td><td>TRL 3–4</td><td>dynamic simulation: 2-DOF plus modal tower</td></tr>
+          <tr><td><a href="#haven">HAVEN-R</a></td><td>50 t, T 6 s, ±0.9 m</td><td>occupied platform / isolate, then land on FPS</td><td><span class="badge badge--r">🧪 R</span></td><td>TRL 2–3</td><td>dynamic simulation: 3-DOF planar</td></tr>
+          <tr><td>HAVEN-F</td><td>5 kt</td><td>occupied platform, always levitated</td><td><span class="badge badge--r">🧪 R</span></td><td>research, extrapolated</td><td>data plus algebraic admission; the villa's reduced platform</td></tr>
+          <tr><td>SHIELD</td><td>50 t (5–500 t)</td><td>guarded zone + PPS / land and lock ≤ 2 s</td><td><span class="badge badge--r">🧪 R</span></td><td>TRL 3</td><td>data, admission, land timeline (reduced model)</td></tr>
+          <tr><td><a href="#bastion">BASTION</a></td><td>50 t, 3 m in 5.25 s</td><td>guarded zone PL e / complete the close, else land</td><td><span class="badge badge--r">🧪 R</span></td><td>TRL 2–3</td><td>closure-race planner (t<sub>a</sub> is an input)</td></tr>
+          <tr><td><a href="#arena">ARENA</a></td><td>8,600 t in pods</td><td>guarded zone / land and lock</td><td><span class="badge badge--r">🧪 R</span></td><td>TRL 3</td><td>static pod reallocation; dynamic simulation <span class="badge badge--m">🗺️ M</span></td></tr>
+          <tr><td>ROTATOR</td><td>6,100 t ring</td><td>guarded zone / brake and land</td><td><span class="badge badge--r">🧪 R</span></td><td>TRL 3</td><td>data plus admission; the absorption check currently fails and is reported</td></tr>
+          <tr><td><a href="#tidegate">TIDEGATE</a></td><td>150 t</td><td>guarded zone / close after shaking, on an external command</td><td><span class="badge badge--r">🧪 R</span></td><td>TRL 2 (triggering 7–9)</td><td>fusion, tsunami timing, closure planner</td></tr>
+          <tr><td>SELENE</td><td>100 t hatch</td><td>teleoperated / land and lock</td><td><a class="badge-link" href="frontier.html#selene"><span class="badge badge--f">🔭 frontier</span></a></td><td>TRL 1–2</td><td>numpy frontier model only (on the frontier page)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small muted">Classes follow EXOTIC §1 and the capability matrix §3. The pedestrian caps are imported from the core presets, never restated in exotic code (FAB-EXO-114).</p>
+  </section>
+
+  <section class="sov-section" id="sentinel" aria-labelledby="sentinel-title">
+    <div class="sov-head"><h2 id="sentinel-title">SENTINEL: a 1,000 t damper in a supertall</h2><span data-tier="r" data-tier-note="FAB-EXO-603–608"></span><span class="sov-meta">maturity TRL 3–4 · tuning closed forms <span class="badge badge--v">✅ V</span></span></div>
+    <p>A hybrid mass damper of about 1 % of the tower's modal mass rides a curved guideway (the passive restoring force) and an ironless LSM trims and damps it. In wind it is tuned with Warburton's force-form optimum; in an earthquake it drops to SEISMIC_PASSIVE and rides through levitated, because landing would remove the damping it adds.</p>
+    <div class="sov-grid">
+      <figure class="stage sov-stage" id="sentinel-stage">
+        <div class="stage-chip" id="sentinel-chip">Same synthetic gusts on both towers.</div>
+        <canvas id="sentinel-canvas" role="img" aria-label="Two towers sway in the same synthetic gusts: on the left the damper is locked, on the right it is tuned. The right tower's tip moves less. Readouts below give the analytic reduction."></canvas>
+        <div class="stage-controls">
+          <button class="btn" type="button" id="sentinel-play" aria-pressed="false">Play</button>
+          <span data-simulated="illustrative"></span>
+          <span class="small">browser 2-DOF model, time ×3, sway exaggerated</span>
+        </div>
+      </figure>
+      <div class="figure">
+        <div class="figure-title">Wind RMS reduction against the tower's own damping <span data-simulated="closed"></span></div>
+        <div id="sentinel-chart"></div>
+        <div class="controls" id="sentinel-controls">
+          <label class="slider"><span>mass ratio μ</span><output data-readout="mu">1 %</output><input type="range" data-param="mu" data-scale="100" data-unit="%" data-digits="2" min="0.2" max="3" step="0.05" value="1"></label>
+          <label class="slider"><span>tower damping ζ<sub>s</sub></span><output data-readout="zs">1 %</output><input type="range" data-param="zs" data-scale="100" data-unit="%" data-digits="2" min="0.5" max="4" step="0.05" value="1"></label>
+        </div>
+        <div class="readouts" id="sentinel-readouts">
+          <div class="stat"><span class="stat-label">RMS reduction</span><span class="stat-value" data-read="red">–</span><span class="stat-note">white-noise force, passive optimum</span></div>
+          <div class="stat"><span class="stat-label">Tuning f / ζ<sub>d</sub></span><span class="stat-value" data-read="tune">–</span><span class="stat-note">Warburton, force form</span></div>
+          <div class="stat"><span class="stat-label">Added damping, quake</span><span class="stat-value" data-read="zadd">–</span><span class="stat-note" data-read="zaddNote">(μ/2)(S/X) at S/X 1.4</span></div>
+        </div>
+        <p class="figure-caption">Host displacement RMS under white-noise force for the passive force-form optimum, computed from the Lyapunov equation of the 2-DOF model: 44.7 % at μ 1 %, ζ<sub>s</sub> 1 %, but 30.0 % at ζ<sub>s</sub> 2 % (EXOTIC §X6). The reduction is always printed with ζ<sub>s</sub>; the ≥ 40 % target applies to the active mode only.</p>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <caption class="small muted" style="text-align:left; caption-side: top; padding-bottom: 0.4rem;">Mode ladder: the most degraded condition wins; recovery needs 60 s of better demand; LANDED_FPS latches until maintenance (FAB-EXO-605).</caption>
+        <thead><tr><th scope="col">Mode</th><th scope="col">Entered on</th><th scope="col">Force source</th></tr></thead>
+        <tbody>
+          <tr><td>HMD_ACTIVE</td><td>normal (wind)</td><td>LQR through the saturation stack: stroke governor → power → force → rate</td></tr>
+          <tr><td>SEISMIC_PASSIVE</td><td>an alert, or floor acceleration over threshold</td><td>passive tuning plus eddy damping, stroke governor armed</td></tr>
+          <tr><td>DVF_ONLY</td><td>a sensor fault</td><td>collocated velocity feedback from the LSM encoder</td></tr>
+          <tr><td>PASSIVE_EDDY</td><td>loss of power</td><td>permanent-magnet-over-copper eddy damping only</td></tr>
+          <tr><td>LANDED_FPS</td><td>loss of levitation</td><td>the damper rests on a friction-pendulum catcher and becomes a friction TMD</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small muted">Why ironless: an iron-core LSM's cogging at 1–3 % of 121 kN is 0.12–0.37 mg on 1,000 t, which alone breaks the ≤ 0.3 mg activation target; and the rail must be low-coercivity or homopolar, because laminations cut eddy drag but not hysteresis drag (EXOTIC §X7, §X8).</p>
+  </section>
+
+  <section class="sov-section" id="haven" aria-labelledby="haven-title">
+    <div class="sov-head"><h2 id="haven-title">HAVEN-R: an isolation plinth at T = 6 s</h2><span data-tier="r" data-tier-note="FAB-EXO-701–707"></span><span class="sov-meta">maturity TRL 2–3 · transmissibility closed forms <span class="badge badge--v">✅ V</span></span></div>
+    <p>A 50 t platform on a curved guideway of radius R = g·T²/4π² (8.95 m at 6 s): the friction-pendulum law without the friction. Skyhook damping acts on the platform's absolute velocity; recentring is weak and switched off while shaking; pre-positioning runs only with independent confirmation and a moat that is <code>ClearVerified</code>. Vertical isolation stays passive: a 10–20 mm gap cannot give the 0.25 m static deflection that 1 Hz needs.</p>
+    <div class="sov-grid">
+      <figure class="stage sov-stage" id="haven-stage">
+        <div class="stage-chip" id="haven-chip">Floor shaking under two plinths: passive and skyhook.</div>
+        <canvas id="haven-canvas" role="img" aria-label="Two isolation plinths on curved guideways over a shaking floor, one with passive damping and one with skyhook damping; the platforms move slowly while the floor shakes. Moat covers span the gap at each side."></canvas>
+        <div class="stage-controls">
+          <button class="btn" type="button" id="haven-play" aria-pressed="false">Play</button>
+          <span data-simulated="illustrative"></span>
+          <span class="small">browser SDOF, illustrative floor motion, motion exaggerated</span>
+        </div>
+      </figure>
+      <div class="figure">
+        <div class="figure-title">Transmissibility, passive against skyhook <span data-simulated="closed"></span></div>
+        <div id="haven-chart"></div>
+        <div class="controls" id="haven-controls">
+          <label class="slider"><span>isolation period T</span><output data-readout="T">6 s</output><input type="range" data-param="T" data-unit="s" data-digits="3" min="3" max="8" step="0.1" value="6"></label>
+          <label class="slider"><span>damping ζ</span><output data-readout="zeta">0.2</output><input type="range" data-param="zeta" data-digits="2" min="0.05" max="0.4" step="0.01" value="0.2"></label>
+        </div>
+        <div class="readouts" id="haven-readouts">
+          <div class="stat"><span class="stat-label">Guideway radius</span><span class="stat-value" data-read="R">–</span><span class="stat-note">R = g·T²/4π²</span></div>
+          <div class="stat"><span class="stat-label">DBE: S<sub>D</sub> / a<sub>peak</sub></span><span class="stat-value" data-read="dbe">–</span><span class="stat-note">S<sub>D1</sub> 0.6, ASCE 7-16 form</span></div>
+          <div class="stat"><span class="stat-label">MCE: S<sub>D</sub> / a<sub>peak</sub></span><span class="stat-value" data-read="mce">–</span><span class="stat-note">S<sub>M1</sub> 0.9 (reported, not bounded)</span></div>
+          <div class="stat"><span class="stat-label">Tilt at full stroke</span><span class="stat-value" data-read="tilt">–</span><span class="stat-note">asin(S/R) with S = S<sub>D</sub> at MCE</span></div>
+        </div>
+        <p class="figure-caption">S<sub>D</sub> = S<sub>D1</sub>·g·T/(4π²·B) and a<sub>peak</sub> = (S<sub>D1</sub>·g/(B·T))·√(1 + 4ζ²), with B interpolated between 1.35 (15 %), 1.5 (20 %) and 1.7 (30 %) damping: at T = 4 s the DBE peak is 0.108 g, over the 0.1 g occupant target; at 6 s it is 0.072 g. The 0.1 g figure is an analysis output for a stated site, not a trip (EXOTIC §X9; FAB-EXO-505).</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sov-section" id="arena" aria-labelledby="arena-title">
+    <div class="sov-head"><h2 id="arena-title">ARENA: 8,600 t on 500 pods, one fails</h2><span data-tier="r"></span><span class="sov-meta">maturity TRL 3 · static allocation only; dynamic simulation <span class="badge badge--m">🗺️ M</span></span></div>
+    <p>A stadium field tray carried by zero-power pods. When a pod fails, the rigid-body wrench is re-allocated by weighted least squares with active-set clamping, the algorithm of <code>fabrail-exo</code>'s static allocator re-evaluated here in the browser. The tray lands when any quadrant's healthy capacity falls below 1.3× its weight share. The tray starts with one pod failed; click or tap pods to fail more.</p>
+    <div class="figure">
+      <div class="seg" id="arena-view" data-choice-group aria-label="Colour by">
+        <button type="button" data-value="delta" aria-pressed="true">Change after reallocation</button>
+        <button type="button" data-value="util">Utilisation</button>
+      </div>
+      <canvas class="pod-canvas" id="arena-canvas" role="img" aria-label="Plan view of the tray: a grid of 500 pods coloured by the change in load after the latest reallocation; failed pods are crossed out. The readouts below give the numbers."></canvas>
+      <div class="pod-legend" id="arena-legend"></div>
+      <div class="btn-row">
+        <button class="btn" type="button" id="arena-fail1">Fail one pod</button>
+        <button class="btn" type="button" id="arena-fail10">Fail a cluster of 10</button>
+        <button class="btn btn--ghost" type="button" id="arena-reset">Reset to one failed pod</button>
+      </div>
+      <div class="readouts" id="arena-readouts">
+        <div class="stat"><span class="stat-label">Healthy pods</span><span class="stat-value" data-read="healthy">500</span><span class="stat-note">of 500</span></div>
+        <div class="stat"><span class="stat-label">Peak utilisation</span><span class="stat-value" data-read="peak">–</span><span class="stat-note" data-read="peakNote">f / f<sub>max</sub></span></div>
+        <div class="stat"><span class="stat-label">Worst quadrant margin</span><span class="stat-value" data-read="quad">–</span><span class="stat-note">capacity ÷ weight share (LAND below 1.3)</span></div>
+        <div class="stat"><span class="stat-label">Decision</span><span class="stat-value" data-read="land">–</span><span class="stat-note" data-read="landNote">&nbsp;</span></div>
+      </div>
+      <p class="figure-caption">Illustrative layout: 25 × 20 pods over 123 × 71 m, each rated at 1.5× its static share (the admission headroom k = 1.5), the centre of mass at the centroid. Losing 1 of 500 pods raises the neighbours' share by a fraction of a percent; the land rule, not the arithmetic, is the story. <span data-simulated="closed"></span></p>
+    </div>
+  </section>
+
+  <section class="sov-section" id="bastion" aria-labelledby="bastion-title">
+    <div class="sov-head"><h2 id="bastion-title">BASTION: the closure race</h2><span data-tier="r" data-tier-note="FAB-EXO-807"></span><span class="sov-meta">maturity TRL 2–3 · closed forms <span class="badge badge--v">✅ V</span></span></div>
+    <p>A 50 t sliding plug closes 3 m on a jerk-limited profile and lands to seal. The planner answers one question, "can it finish in time": CLOSE iff t<sub>min</sub> + t<sub>seal</sub> + margin ≤ t<sub>a</sub> − t<sub>detect</sub>, with the zone clear or a two-person override active. The arrival time t<sub>a</sub> is always an input; the only distance fabrail reports is the bound a shock implies, R ≥ c<sub>0</sub>·t<sub>a</sub>, because a shock never travels slower than sound.</p>
+    <div class="sov-grid">
+      <figure class="stage sov-stage" id="bastion-stage">
+        <div class="stage-chip" id="bastion-chip">–</div>
+        <canvas id="bastion-canvas" role="img" aria-label="A sliding vault door closes across a 3 m opening while a schematic pressure front approaches; the verdict below says whether the close and seal finish before the arrival time."></canvas>
+        <div class="stage-controls">
+          <button class="btn" type="button" id="bastion-play" aria-pressed="false">Play</button>
+          <span data-simulated="illustrative"></span>
+          <span class="small">door kinematics exact; pressure front schematic</span>
+        </div>
+      </figure>
+      <div class="figure">
+        <div class="figure-title">Inputs <span data-simulated="closed"></span></div>
+        <div class="controls" id="bastion-controls">
+          <label class="slider"><span>arrival time t<sub>a</sub></span><output data-readout="ta">8 s</output><input type="range" data-param="ta" data-unit="s" data-digits="3" min="0.2" max="15" step="0.05" value="8"></label>
+          <label class="slider"><span>detection latency t<sub>detect</sub></span><output data-readout="td">0 s</output><input type="range" data-param="td" data-unit="s" data-digits="2" min="0" max="2" step="0.05" value="0"></label>
+        </div>
+        <div class="seg" id="bastion-accel" data-choice-group aria-label="Close acceleration" style="margin-top:0.8rem">
+          <button type="button" data-value="0.48" aria-pressed="true">a 0.48 m/s²</button>
+          <button type="button" data-value="0.53">a 0.53 m/s²</button>
+        </div>
+        <div class="verdict" id="bastion-verdict" role="status">–</div>
+        <p class="figure-caption">3 m, j = 2 m/s³: 5.246 s at a = 0.48 m/s² (peak 1.144 m/s), 5.031 s at 0.53 m/s²; seal and margin 0.6 s; c<sub>0</sub> = 343 m/s. A close therefore needs t<sub>a</sub> ≥ 5.85 s, a source at least about 2 km away. Nearby blasts arrive in 0.1–0.5 s, where only normally closed doors and blast valves act: the value of a fast close is less exposure while the door must be open (EXOTIC §X11).</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sov-section" id="tidegate" aria-labelledby="tidegate-title">
+    <div class="sov-head"><h2 id="tidegate-title">TIDEGATE: time is not the problem</h2><span data-tier="r" data-tier-note="FAB-EXO-809"></span><span class="sov-meta">maturity TRL 2 (triggering TRL 7–9) · timing model <span class="badge badge--s">🔶 S</span></span></div>
+    <p>A 150 t gate on hybrid EMS with wheels as the fallback. It closes only after the shaking ends and only on the command of an external decision system, after a rail-gap check; if the check fails it closes on its wheels or rack. A tsunami crossing a shelf at √(g·h) leaves minutes; coastal subsidence, tilt, liquefaction and debris in the gap are the real objections.</p>
+    <div class="figure">
+      <div class="figure-title">Timeline after the origin, minutes <span data-simulated="closed"></span></div>
+      <div id="tide-chart"></div>
+      <div class="controls" id="tide-controls">
+        <label class="slider"><span>deep-ocean path</span><output data-readout="l1">0 km</output><input type="range" data-param="l1" data-scale="0.001" data-unit="km" data-digits="3" min="0" max="400" step="5" value="0"></label>
+        <label class="slider"><span>shelf path</span><output data-readout="l2">100 km</output><input type="range" data-param="l2" data-scale="0.001" data-unit="km" data-digits="3" min="10" max="300" step="5" value="100"></label>
+        <label class="slider"><span>shelf depth</span><output data-readout="h2">1,000 m</output><input type="range" data-param="h2" data-unit="m" data-digits="4" min="50" max="3000" step="50" value="1000"></label>
+        <label class="slider"><span>shaking duration</span><output data-readout="shake">120 s</output><input type="range" data-param="shake" data-unit="s" data-digits="3" min="30" max="300" step="10" value="120"></label>
+        <label class="slider"><span>decision-system command after shaking</span><output data-readout="cmd">60 s</output><input type="range" data-param="cmd" data-unit="s" data-digits="3" min="10" max="600" step="10" value="60"></label>
+        <label class="slider"><span>gate close time</span><output data-readout="close">90 s</output><input type="range" data-param="close" data-unit="s" data-digits="3" min="30" max="120" step="5" value="90"></label>
+      </div>
+      <label class="small" style="display:block; margin-top:0.6rem"><input type="checkbox" id="tide-gapfail" style="accent-color: var(--accent); width:18px; height:18px; vertical-align:-3px; margin-right:0.35rem">The post-shaking rail-gap check fails (subsidence or debris): close on wheels</label>
+      <div class="verdict" id="tide-verdict" role="status">–</div>
+      <p class="figure-caption">Arrival ∫dx/√(g·h) over a deep segment at 4,000 m and a shelf segment; 100 km over a 1,000 m shelf takes about 17 minutes. Green's law gives the amplitude growth (h₀/h₁)^¼ to a 10 m approach. The deep segment's depth, the rail-check time (30 s) and the wheel-close time (2× the maglev close) are illustrative inputs. The decision path has a SIL 3 target; SIL 4 is unclaimable (EXOTIC §X12).</p>
+    </div>
+  </section>
+
+  <section class="sov-section" id="ride-through" aria-labelledby="ride-title">
+    <div class="sov-head"><h2 id="ride-title">Ride-through energy</h2><span data-tier="v" data-tier-note="FAB-EXO-120, -403"></span><span class="sov-meta">closed form; the stores are simplified <span class="badge badge--s">🔶 S</span></span></div>
+    <p>A class that must stay levitated through an earthquake has to carry its hold power on islanded storage for T<sub>ride</sub> = max(300 s, the scenario's shaking) + landing. For hybrid EMS the permanent magnets carry the weight and the coils only the dynamic force, so the hold power scales with the square of the vertical acceleration at the suspension; pure EMS pays for the whole weight.</p>
+    <div class="figure">
+      <div class="calc" id="ride-controls">
+        <label class="slider"><span>suspended mass</span><output data-readout="mass">10,000 t</output><input type="range" data-param="mass" data-log data-scale="0.001" data-unit="t" data-digits="3" min="1.7" max="5" step="0.01" value="4"></label>
+        <label class="slider"><span>vertical a<sub>rms</sub> at the suspension</span><output data-readout="arms">0.2 g</output><input type="range" data-param="arms" data-unit="g" data-digits="2" min="0.02" max="0.6" step="0.01" value="0.2"></label>
+        <label class="slider"><span>scenario shaking</span><output data-readout="tshake">300 s</output><input type="range" data-param="tshake" data-unit="s" data-digits="3" min="30" max="600" step="10" value="300"></label>
+        <label class="slider"><span>landing time</span><output data-readout="tland">0 s</output><input type="range" data-param="tland" data-unit="s" data-digits="3" min="0" max="120" step="5" value="0"></label>
+        <label class="pick"><span>Suspension</span>
+          <select id="ride-kind">
+            <option value="hybrid" selected>hybrid PM-biased EMS</option>
+            <option value="pure">pure EMS</option>
+            <option value="hts">HTS flux pinning</option>
+          </select>
+        </label>
+        <label class="pick"><span>Margin</span><span><input type="checkbox" id="ride-margin" checked>2× on the energy</span></label>
+      </div>
+      <div class="readouts" id="ride-readouts">
+        <div class="stat"><span class="stat-label">Hold power</span><span class="stat-value" data-read="p">–</span><span class="stat-note" data-read="pNote">&nbsp;</span></div>
+        <div class="stat"><span class="stat-label">T<sub>ride</sub></span><span class="stat-value" data-read="t">–</span><span class="stat-note">max(300 s, shaking) + landing</span></div>
+        <div class="stat"><span class="stat-label">Energy</span><span class="stat-value" data-read="e">–</span><span class="stat-note" data-read="eNote">&nbsp;</span></div>
+      </div>
+      <div class="verdict" id="ride-verdict" role="status">–</div>
+      <p class="figure-caption">P<sub>W</sub> = 1.7 kW/t (the Transrapid levitation-and-guidance figure) and P<sub>hold</sub> = P<sub>W</sub>·(a<sub>rms</sub>/2g)² for hybrid EMS: 10 kt at 0.2 g for 300 s is 170 kW and 51 MJ, 102 MJ with the margin, within one EMALS-class disk's demonstrated 121 MJ per cycle; pure EMS needs 5.1 GJ against a JET-class flywheel's ≈ 2.8 GJ usable. The admission also checks absorption (a full store cannot take braking energy). EXOTIC §X4, §X5.</p>
+    </div>
+  </section>
+
+  <section class="sov-section" id="redundancy" aria-labelledby="red-title">
+    <div class="sov-head"><h2 id="red-title">1oo2D and 2oo3, designed toward SIL 3 and SIL 4 targets</h2><span data-tier="v" data-tier-note="voter and ladder logic"></span><span class="sov-meta">firmware applications <span class="badge badge--m">🗺️ M</span> · designed toward the targets, no certification claimed</span></div>
+    <p>The vote sits on the shutdown path (LSM STO and the brake), not in the 10 kHz force loop. STO acts on the LSM only; a de-energised zero-power suspension diverges in an indeterminate direction, so landing is an energised safety function with its own monitored reserve and a mechanical backstop, voted separately. There is no FMEDA, no hardware and no WCET measurement.</p>
+    <div class="figure">
+      <div class="figure-title">1oo2D: two diverse lockstep channels</div>
+      <svg class="dg" viewBox="0 0 760 290" role="img" aria-labelledby="dg1-t dg1-d">
+        <title id="dg1-t">1oo2D architecture</title>
+        <desc id="dg1-d">Sensors A, a triplex gap set, feed channel A, a lockstep Cortex-M7 running RTIC with the control crates. Sensors B, diverse inductance and Hall channels, feed channel B, a lockstep Cortex-R5F running a cyclic executive with the safety crates. A black-channel cross-link joins the two channels. Both drive safe torque off in series on the LSM gate drivers and the brake; each can trip alone. Landing is a separate energised function with a monitored reserve.</desc>
+        <defs><marker id="ah1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0 0L10 5L0 10z"/></marker></defs>
+        <rect class="box" x="10" y="30" width="150" height="58" rx="8"/><text class="t" x="22" y="54">Sensors A</text><text class="s" x="22" y="72">triplex gap set</text>
+        <rect class="box" x="10" y="190" width="150" height="58" rx="8"/><text class="t" x="22" y="214">Sensors B (diverse)</text><text class="s" x="22" y="232">L(g) ripple, Hall</text>
+        <rect class="box-a" x="220" y="16" width="250" height="86" rx="8"/><text class="t" x="232" y="40">CH-A · lockstep Cortex-M7</text><text class="s" x="232" y="58">RTIC, thumbv7em-none-eabihf</text><text class="m" x="232" y="76">fabrail-core + fabrail-exo (control)</text><text class="m" x="232" y="92">+ local plausibility</text>
+        <rect class="box-b" x="220" y="176" width="250" height="86" rx="8"/><text class="t" x="232" y="200">CH-B · lockstep Cortex-R5F</text><text class="s" x="232" y="218">cyclic executive, armv7r-none-eabihf</text><text class="m" x="232" y="236">fabrail-safety + fabrail-exo-safety</text><text class="m" x="232" y="252">integer envelope, voter, ladder</text>
+        <path class="wire" d="M160 59H218" marker-end="url(#ah1)"/><path class="wire" d="M160 219H218" marker-end="url(#ah1)"/>
+        <path class="link" d="M345 104V174" marker-start="url(#ah1)" marker-end="url(#ah1)"/>
+        <text class="s" x="336" y="128" text-anchor="end">black channel:</text><text class="s" x="336" y="144" text-anchor="end">CRC-32, sequence,</text><text class="s" x="336" y="160" text-anchor="end">timeout, source ID</text>
+        <rect class="box-out" x="540" y="40" width="210" height="96" rx="8"/><text class="t" x="552" y="64">STO-A and STO-B in series</text><text class="s" x="552" y="82">LSM gate drivers only</text><text class="s" x="552" y="100">+ brake</text><text class="m" x="552" y="120">each channel can trip alone</text>
+        <rect class="box-land" x="540" y="168" width="210" height="84" rx="8"/><text class="t" x="552" y="192">Landing (energised)</text><text class="s" x="552" y="210">monitored reserve +</text><text class="s" x="552" y="226">mechanical backstop</text><text class="m" x="552" y="244">commanded separately</text>
+        <path class="wire" d="M470 59H538" marker-end="url(#ah1)"/><path class="wire" d="M470 219H500V100H538" marker-end="url(#ah1)"/><path class="wire" d="M500 210H538" marker-end="url(#ah1)"/>
+      </svg>
+      <div class="figure-title" style="margin-top:1.2rem">2oo3: a third channel and a hard-wired voter</div>
+      <svg class="dg" viewBox="0 0 760 250" role="img" aria-labelledby="dg2-t dg2-d">
+        <title id="dg2-t">2oo3 architecture</title>
+        <desc id="dg2-d">Three channels, A, B and a third channel C such as an AURIX TC4x or a Cortex-R52, feed a hard-wired two-out-of-three relay or contactor voter on safe torque off and the brake only. The force loop runs one active channel with a hot standby. Landing is voted separately with reserve-health monitoring.</desc>
+        <defs><marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0 0L10 5L0 10z"/></marker></defs>
+        <rect class="box-a" x="10" y="16" width="220" height="56" rx="8"/><text class="t" x="22" y="40">CH-A · Cortex-M7 lockstep</text><text class="m" x="22" y="58">control, RTIC</text>
+        <rect class="box-b" x="10" y="96" width="220" height="56" rx="8"/><text class="t" x="22" y="120">CH-B · Cortex-R5F lockstep</text><text class="m" x="22" y="138">safety, cyclic executive</text>
+        <rect class="box-c" x="10" y="176" width="220" height="56" rx="8"/><text class="t" x="22" y="200">CH-C · AURIX TC4x or R52</text><text class="m" x="22" y="218">third diverse channel</text>
+        <rect class="box" x="300" y="70" width="170" height="110" rx="8"/><text class="t" x="314" y="100">2oo3 voter</text><text class="s" x="314" y="120">hard-wired relays</text><text class="s" x="314" y="138">or contactors</text><text class="m" x="314" y="160">on STO and brake only</text>
+        <path class="wire" d="M230 44H262V104H298" marker-end="url(#ah2)"/><path class="wire" d="M230 124H298" marker-end="url(#ah2)"/><path class="wire" d="M230 204H262V146H298" marker-end="url(#ah2)"/>
+        <rect class="box-out" x="540" y="30" width="210" height="70" rx="8"/><text class="t" x="552" y="56">LSM STO + brake</text><text class="m" x="552" y="76">what the vote gates</text>
+        <rect class="box-land" x="540" y="120" width="210" height="100" rx="8"/><text class="t" x="552" y="144">Force loop and landing</text><text class="s" x="552" y="162">one active channel, hot standby,</text><text class="s" x="552" y="178">split magnet groups;</text><text class="m" x="552" y="198">landing voted separately</text>
+        <path class="wire" d="M470 110H505V65H538" marker-end="url(#ah2)"/>
+      </svg>
+      <p class="figure-caption">Diversity comes from different silicon vendors and instruction sets, different schedulers, different code (<code>fabrail-exo-safety</code> is not <code>fabrail-exo</code>) and different arithmetic (integers against f32). Compiler diversity is weak: Ferrocene and HighTec are both LLVM-based. TMS570 (big-endian BE32) cannot be targeted by Rust (EXOTIC §S3, §S4).</p>
+    </div>
+
+    <div class="sov-grid" style="margin-top:1rem">
+      <div class="figure">
+        <div class="figure-title">Mid-value select <span data-simulated="closed"></span></div>
+        <p class="small">mvs(a, b, c) = max(min(a, b), min(max(a, b), c)). The output always lies between two of the inputs, so one faulty channel, whatever its value, cannot move it outside the range of the two healthy ones.</p>
+        <div class="controls" id="mvs-controls">
+          <label class="slider"><span>channel A</span><output data-readout="a">10 mm</output><input type="range" data-param="a" data-unit="mm" data-digits="3" min="0" max="20" step="0.05" value="10"></label>
+          <label class="slider"><span>channel B</span><output data-readout="b">10.2 mm</output><input type="range" data-param="b" data-unit="mm" data-digits="3" min="0" max="20" step="0.05" value="10.2"></label>
+          <label class="slider"><span>channel C</span><output data-readout="c">9.9 mm</output><input type="range" data-param="c" data-unit="mm" data-digits="3" min="0" max="20" step="0.05" value="9.9"></label>
+        </div>
+        <div class="btn-row"><button class="btn" type="button" id="mvs-fault">Drive channel C to 20 mm (a stuck sensor)</button></div>
+        <p class="voter-out" id="mvs-out" role="status">–</p>
+      </div>
+      <div class="figure">
+        <div class="figure-title">Degradation ladder <span data-tier="v" data-tier-note="FAB-EXO-302, -303"></span></div>
+        <p class="small">The ladder only steps down until a maintenance reset. A further loss before a degraded rung is established, or two losses on one cycle, is treated as common cause and goes straight to the safe state (STO on the LSM, the brake, the energised landing).</p>
+        <ol class="ladder" id="ladder">
+          <li data-rung="0">2oo3</li><li data-rung="1">1oo2D</li><li data-rung="2">1oo1D</li><li data-rung="3" data-safe>safe state (latched)</li>
+        </ol>
+        <div class="btn-row">
+          <button class="btn" type="button" id="ladder-lose">Lose one channel</button>
+          <button class="btn" type="button" id="ladder-double">Two losses on one cycle</button>
+          <button class="btn btn--ghost" type="button" id="ladder-reset">Maintenance reset</button>
+        </div>
+        <p class="voter-out" id="ladder-out" role="status">–</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sov-section" id="runs" aria-labelledby="runs-title">
+    <h2 id="runs-title">Recorded runs</h2>
+    <p id="runs-note">The seed-42 exotic runs (EXO_RUN) appear here once they are generated: each with its inputs, its KPIs, its badge and maturity, and a "reduced model" label for roadmap classes.</p>
+    <div class="runs" id="runs-list"></div>
+  </section>
+
+  <aside class="tier-legend" aria-label="Tier badges">
+    <strong>Tier badges</strong>
+    <ul>
+      <li><span class="badge badge--v">✅ V</span> verified in simulation</li>
+      <li><span class="badge badge--s">🔶 S</span> simplified model</li>
+      <li><span class="badge badge--r">🧪 R</span> research tier</li>
+      <li><span class="badge badge--m">🗺️ M</span> roadmap</li>
+      <li><span class="badge badge--f">🔭 frontier</span> overrides the badge: theoretical, never a product</li>
+    </ul>
+    <p>Technology maturity (TRL) is shown separately and never raises a badge. Badges follow <code>docs/SPECIFICATION.md</code> §0.5.</p>
+  </aside>
+</main>
+<footer class="site-footer">
+  <span>fabrail · MIT licence · simulation results, not hardware measurements</span>
+  <span class="selftest-badge" data-selftest data-state="pending">selftest: pending</span>
+</footer>
+<script src="assets/data/anchors.js"></script>
+<script src="assets/data/exo_run.js"></script>
+<script src="assets/js/nav.js"></script>
+<script src="assets/js/formulas.js"></script>
+<script src="assets/js/plot.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/engine.js"></script>
+<script src="assets/js/scene-sovereign.js"></script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+[package]
+name = "fabrail-web"
+description = "fabrail browser engine: the real controller and plant compiled to wasm32-unknown-unknown behind hand-written extern \"C\" exports"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lib]
+# cdylib -> docs/assets/wasm/fabrail_web.wasm; rlib -> host `cargo check`/tests.
+crate-type = ["cdylib", "rlib"]
+doctest = false
+
+# std crate (std is available on wasm32-unknown-unknown). No wasm-bindgen.
+# Build: rustup run stable cargo build -p fabrail-web --target wasm32-unknown-unknown --release
+[dependencies]
+fabrail-types = { path = "../fabrail-types" }
+fabrail-params = { path = "../fabrail-params" }
+fabrail-core = { path = "../fabrail-core" }
+fabrail-rt = { path = "../fabrail-rt" }
+fabrail-plant = { path = "../fabrail-plant" }
+# No rayon on wasm32: the `parallel` feature stays off.
+fabrail-sim = { path = "../fabrail-sim", default-features = false }

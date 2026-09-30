@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Levitate · fabrail</title>
+<meta name="description" content="Zero-power hybrid magnetic suspension: Earnshaw&#x27;s instability, the zero-power float and its stops.">
+<meta name="color-scheme" content="dark light">
+<script src="assets/js/theme.js"></script>
+<link rel="stylesheet" href="assets/css/site.css">
+<style>
+/* levitate (owner W2). Under reduced motion every animation on this page falls back to a
+   static keyframe: the flux shimmer stops, the live engine waits for the Run button and
+   the control-off experiment is computed at once and drawn as its final frame. */
+@media (prefers-reduced-motion: reduce) {
+  .scene *, .scene *::before, .scene *::after { animation: none !important; transition: none !important; }
+}
+.btn[hidden] { display: none; }
+.page > .scene.live {
+  display: block; min-height: 0; padding: 0; text-align: left; place-items: initial;
+  background: none; border: 0; color: inherit; font-family: inherit; font-size: inherit;
+}
+.lev-grid {
+  display: grid; gap: 1rem; margin-top: 1.2rem;
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); align-items: start;
+}
+.lev-grid > .figure, .lev-grid > .stage { margin-top: 0; }
+.lev-stage canvas { touch-action: pan-y; cursor: default; }
+@media (min-width: 641px) { .lev-stage .stage-chip { max-width: calc(64% - 1.5rem); } }
+.lev-stage canvas[data-drag="over"] { cursor: grab; }
+.lev-stage canvas[data-drag="on"] { cursor: grabbing; }
+.lev-side { display: grid; gap: 0.8rem; }
+.lev-side .readouts { margin-top: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.lev-side .stat-value { font-size: 1.05rem; }
+.stat[data-alert="on"] { border-color: var(--s4); background: var(--caution-dim); }
+.lev-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.lev-actions .btn { min-height: 36px; padding: 0.4rem 0.75rem; }
+.btn[data-kind="off"] { border-color: var(--plot-ref); }
+.btn[data-kind="on"] { border-color: var(--good); }
+.panel {
+  padding: 0.8rem 0.9rem; background: var(--bg-panel); border: 1px solid var(--hair);
+  border-radius: var(--radius); font-family: var(--font-sans); font-size: 0.88rem;
+}
+.panel h3 { margin-top: 0; font-family: var(--font-sans); font-size: 0.92rem; }
+.panel p { margin-top: 0.4rem; color: var(--ink-2); }
+.panel .controls { margin-top: 0.5rem; grid-template-columns: minmax(0, 1fr); }
+.two-up { display: grid; gap: 1rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.two-up > .figure { margin-top: 1rem; }
+.req { font-family: var(--font-mono); font-size: 0.78em; color: var(--ink-3); }
+.badges { display: flex; flex-wrap: wrap; gap: 0.35rem 0.6rem; align-items: center; margin-top: 0.7rem; font-family: var(--font-sans); font-size: 0.84rem; color: var(--ink-2); }
+.note-list { font-family: var(--font-sans); font-size: 0.9rem; color: var(--ink-2); }
+.num-table td.num, .num-table th.num { text-align: right; white-space: nowrap; }
+.stage-controls .seg { background: var(--bg-elev); }
+.engine-line { font-family: var(--font-mono); font-size: 0.76rem; color: var(--ink-3); }
+@media (max-width: 900px) {
+  .lev-grid, .two-up { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .lev-stage .stage-chip { position: static; display: block; margin: 0.6rem 0.6rem 0; border-radius: 8px; }
+}
+</style>
+</head>
+<body data-page="levitate">
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <a class="wordmark" href="index.html" aria-label="fabrail home">FAB<span>·</span>RAIL</a>
+  <nav class="site-nav" aria-label="Site pages" data-site-nav>
+    <a href="index.html">Overview</a>
+    <a href="levitate.html">Levitate</a>
+    <a href="glide.html">Glide</a>
+    <a href="touch.html">Touch</a>
+    <a href="quake.html">Quake</a>
+    <a href="villa.html">Villa</a>
+    <a href="sovereign.html">Sovereign</a>
+    <a href="frontier.html">Frontier</a>
+    <a href="examples.html">Examples</a>
+  </nav>
+  <button class="theme-btn" type="button" data-theme-toggle aria-label="Toggle colour theme" title="Toggle colour theme">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"></path></svg>
+  </button>
+</header>
+<main id="main" class="page">
+  <p class="eyebrow">Levitation</p>
+  <h1>Earnshaw says no, so the rail listens.</h1>
+  <p class="lede">Permanent magnets carry the weight; coils only correct, and their current falls to zero at equilibrium.</p>
+  <p>No arrangement of static magnets holds a steel carriage still (Earnshaw, 1842). Pull a magnet a little closer to the rail and its attraction grows faster than the weight, so it snaps up; let it sag and it drops. The hybrid suspension keeps the permanent magnets for the lifting and adds coils that only nudge. Mizuno's zero-power control then walks the gap to the one place where the magnets alone balance the load, so the coil current settles to zero whatever the load is. That is why the gap moves when the load changes.</p>
+  <div class="badges"><span data-tier="v"></span> <span>open-loop pole, zero-power float, load step, band clamp, stop ratios, thermal shift <span class="req">FAB-LEV-003 · 004 · 005 · 006 · 014 · 018</span></span> <span data-tier="s"></span> <span>magnet force law <span class="req">FAB-LEV-002</span></span></div>
+
+  <section class="scene live wide" id="scene" aria-label="Levitation scene">
+    <div class="lev-grid">
+      <figure class="stage lev-stage" id="lev-stage">
+        <div class="stage-chip" id="lev-chip" aria-live="polite">A carriage floats under a steel rail. Loading the browser engine…</div>
+        <canvas id="lev-canvas" tabindex="0" role="img" aria-describedby="lev-desc" aria-label="Side view of a levitated carriage under a steel rail with its magnets, coils and flux lines, a gap gauge and a coil-current gauge. Drag a weight from the tray onto the carriage to load it."></canvas>
+        <div class="stage-controls">
+          <div class="seg" data-choice-group id="lev-class" aria-label="Class">
+            <button data-value="door" aria-pressed="true">DOOR 100 kg</button>
+            <button data-value="wall">WALL 500 kg</button>
+            <button data-value="heavy">HEAVY 5 t</button>
+          </div>
+          <button class="btn" id="lev-run" type="button" hidden>Run the live engine</button>
+          <span data-simulated="" id="lev-sim"></span>
+          <span class="engine-line" id="lev-engine">engine: loading</span>
+        </div>
+      </figure>
+      <div class="lev-side">
+        <div class="panel">
+          <h3>Load it</h3>
+          <p>Drag a weight from the tray onto the carriage, or use the slider. The engine has no payload input, so the page applies a payload Δm as the equivalent steady vertical floor acceleration a<sub>z</sub> = g₀·Δm/m*, ramped gently (see the notes below).</p>
+          <div class="controls">
+            <label class="slider"><span>payload Δm</span><output id="lev-payload-out" for="lev-payload">0 kg</output>
+              <input type="range" id="lev-payload" min="-15" max="30" step="0.5" value="0" aria-describedby="lev-payload-note"></label>
+          </div>
+          <p class="small muted" id="lev-payload-note">Percent of m* on the slider; the readout is in kilograms. Above +5 % the estimate m̂ passes 1.05·m<sub>rated</sub>: the supervisor keeps levitating and degrades motion to hold-to-run (PayloadMismatch, FAB-SAF-018).</p>
+        </div>
+        <div class="readouts" id="lev-readouts">
+          <div class="stat"><span class="stat-label">gap</span><span class="stat-value num" id="ro-gap">–</span><span class="stat-note" id="ro-gap-note">zero-power g(m): –</span></div>
+          <div class="stat"><span class="stat-label">coil current, mean</span><span class="stat-value num" id="ro-i">–</span><span class="stat-note" id="ro-i-note">closed form: –</span></div>
+          <div class="stat"><span class="stat-label">estimated mass m̂</span><span class="stat-value num" id="ro-mhat">–</span><span class="stat-note" id="ro-mhat-note">true m* + Δm: –</span></div>
+          <div class="stat" id="ro-state-box"><span class="stat-label">supervisor</span><span class="stat-value" id="ro-state">–</span><span class="stat-note" id="ro-state-note">–</span></div>
+        </div>
+        <div class="panel">
+          <h3>Switch the control off</h3>
+          <p>The coil current is forced to zero and the carriage is left to the magnets. Which way it goes depends on the last few micrometres, so the buttons nudge it first.</p>
+          <div class="lev-actions">
+            <button class="btn" type="button" data-kind="off" id="lev-off-up">Off, nudged up 5 µm</button>
+            <button class="btn" type="button" data-kind="off" id="lev-off-down">Off, nudged down 5 µm</button>
+            <button class="btn" type="button" data-kind="on" id="lev-on" disabled>Control on</button>
+          </div>
+          <p class="small muted" id="lev-off-result" aria-live="polite">Open-loop pole at this load: –</p>
+        </div>
+      </div>
+    </div>
+    <p class="small muted" id="lev-desc">The carriage, rail and gauges are schematic and the gap is drawn enlarged; the numbers are the engine's plant truth. While the control is on, the carriage is driven by the Rust levitation controller and a Heave1 plant compiled to WebAssembly (the same code as the firmware target), stepped in real time in your browser. With the control off, the page integrates the closed-form open-loop magnet force in JavaScript (PHYSICS §3, §15).</p>
+
+    <div class="two-up">
+      <div class="figure">
+        <div class="figure-title">The gap follows m(g) <span data-simulated="" id="law-sim"></span></div>
+        <div id="law-chart"></div>
+        <p class="figure-caption">At zero coil current a mass m floats where the magnets alone carry it: m(g) = m*·((2g* + h′)/(2g + h′))², a fixed curve per class (PHYSICS §3, FAB-LEV-005). The shaded band is the modified zero-power band: outside it the controller holds the band edge with a bias current instead (FAB-LEV-018). The dot is the live engine.</p>
+      </div>
+      <div class="figure">
+        <div class="figure-title">Gap and coil current, last 12 s <span data-simulated="" id="strip-sim"></span></div>
+        <div id="gap-chart"></div>
+        <div id="cur-chart"></div>
+        <p class="figure-caption">After a load step the gap moves to the new zero-power point and the current returns to zero (FAB-LEV-004 asks abs(i) &lt; 1 mA within 2 s on the DOOR +98.1 N step, 4.5967 mm ± 2 µm). Sensor noise and the ±5 µm gap ripple are part of the simulation.</p>
+      </div>
+    </div>
+  </section>
+
+  <h2 id="earnshaw">Why switching it off is never an option</h2>
+  <p>Linearised at the float, the magnets act as a negative spring: the open-loop heave pole is p = √(4g₀/(2g + h′)), a divergence time constant of 1/p. The chart shows what happens after the control is switched off from the live state: the gap departs as cosh(p·t) and the carriage reaches a stop within a fraction of a second. In the real rail this is not a mode anyone can select: the levitation safe state is SS1 Safe Landing, an energised, monitored descent on a supercapacitor, and the propulsion's safe state (STO) never touches the suspension.</p>
+  <div class="figure wide">
+    <div class="figure-title">Gap after the control is switched off <span data-simulated="closed"></span></div>
+    <div id="ol-chart"></div>
+    <p class="figure-caption" id="ol-caption">Run the experiment above to fill this chart. The solid line is the nonlinear open-loop model integrated in your browser (RK4, 20 µs); the dashed line is the linear divergence δ₀·cosh(p·t). Impact speeds are checked against the energy closed form ½mv² = ∫n·F dg − m·g₀·Δg (PHYSICS §3, FAB-LEV-019).</p>
+  </div>
+  <div class="table-wrap wide">
+    <table class="num-table" id="impact-table">
+      <caption class="small muted" style="caption-side: bottom; text-align:left; padding-top:0.4rem">Control loss from rest at g* with m*: no coil current, no eddy lag, no dissipation (derive::impact_speed, PHYSICS §3 and §15). Computed here by the page's RK4 and by the closed form; the anchor column is the published table.</caption>
+      <thead><tr><th scope="col">Class</th><th scope="col" class="num">Pole p</th><th scope="col" class="num">Up: RK4 here</th><th scope="col" class="num">Up: anchor</th><th scope="col" class="num">Down: RK4 here</th><th scope="col" class="num">Down: anchor</th></tr></thead>
+      <tbody>
+        <tr data-class="drawer"><td>DRAWER (26 kg)</td><td class="num" data-k="p">69.5 rad/s</td><td class="num" data-k="up">–</td><td class="num">109.6 mm/s</td><td class="num" data-k="down">–</td><td class="num">197.3 mm/s</td></tr>
+        <tr data-class="door"><td>DOOR</td><td class="num" data-k="p">47.6 rad/s</td><td class="num" data-k="up">–</td><td class="num">50.58 mm/s</td><td class="num" data-k="down">–</td><td class="num">55.59 mm/s</td></tr>
+        <tr data-class="wall"><td>WALL, HEAVY</td><td class="num" data-k="p">32.5 rad/s</td><td class="num" data-k="up">–</td><td class="num">68.81 mm/s</td><td class="num" data-k="down">–</td><td class="num">76.27 mm/s</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="stops">Stops: what the magnets can and cannot do on contact</h2>
+  <p>A zero-power hybrid carriage cannot be designed so that it never clamps up: at any gap closer than the float the magnets pull harder than the weight. So both stops are designed contacts. The upper stop is a sliding surface that must carry the magnet pull, at most 1.30 times the weight for DOOR, WALL and HEAVY; the DRAWER uses elastomer upper rollers rated 600 N against a 551.5 N pull. The lower stop is where a landed carriage rests, and it must stay there with power off: the magnets may pull at most 0.90 of the lightest operating weight at the landing gap, so the carriage never lifts itself.</p>
+  <div class="two-up wide">
+    <div class="figure">
+      <div class="figure-title">Magnet pull over weight, against the gap <span data-simulated="closed"></span></div>
+      <div class="btn-row" style="margin-top:0.3rem">
+        <div class="seg" data-choice-group id="stop-class" aria-label="Class for the stop chart">
+          <button data-value="drawer">DRAWER</button>
+          <button data-value="door" aria-pressed="true">DOOR</button>
+          <button data-value="wall">WALL</button>
+          <button data-value="heavy">HEAVY</button>
+        </div>
+      </div>
+      <div id="stop-chart"></div>
+      <p class="figure-caption">n·F<sub>pm</sub>(g)/(m·g₀) at zero current: with m* (upper-stop rule, ≤ 1.30 at g<sub>up</sub>) and with m<sub>op,min</sub> (stay-landed rule, ≤ 0.90 at g<sub>land</sub>). PHYSICS §3; FAB-LEV-006; params::validate rejects a preset that breaks either rule.</p>
+    </div>
+    <div>
+      <div class="table-wrap">
+        <table class="num-table" id="stop-table">
+          <thead><tr><th scope="col">Class</th><th scope="col" class="num">g<sub>up</sub></th><th scope="col" class="num">Upper stop, F/(m*·g₀)</th><th scope="col" class="num">g<sub>land</sub></th><th scope="col" class="num">Stay-landed, F/(m<sub>op,min</sub>·g₀)</th></tr></thead>
+          <tbody>
+            <tr data-class="drawer"><td>DRAWER</td><td class="num">1.2 mm</td><td class="num" data-k="up">2.163 (rollers 600 N)</td><td class="num">6.5 mm</td><td class="num" data-k="land">0.8250</td></tr>
+            <tr data-class="door"><td>DOOR</td><td class="num">4.0 mm</td><td class="num" data-k="up">1.278</td><td class="num">6.25 mm</td><td class="num" data-k="land">0.8487</td></tr>
+            <tr data-class="wall"><td>WALL</td><td class="num">8.0 mm</td><td class="num" data-k="up">1.256</td><td class="num">12.5 mm</td><td class="num" data-k="land">0.8631</td></tr>
+            <tr data-class="heavy"><td>HEAVY</td><td class="num">8.0 mm</td><td class="num" data-k="up">1.256</td><td class="num">12.5 mm</td><td class="num" data-k="land">0.8631</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="small muted" id="stop-source">Values computed in your browser from the closed forms. The rounded stay-landed quotes in SPECIFICATION (0.824 / 0.850) differ from the exact 0.8250 / 0.8487 through the balanced pole length (PHYSICS §3).</p>
+      <p class="badges"><span data-tier="v"></span> <span class="req">FAB-LEV-006</span></p>
+    </div>
+  </div>
+
+  <h2 id="thermal">Thermal drift: a warm magnet is a heavier load</h2>
+  <p>NdFeB loses about 0.12 % of its remanence per kelvin. At zero current the float obeys n·F<sub>pm</sub>(g) = m·g₀ with F<sub>pm</sub> proportional to B<sub>r</sub>², so a warmer magnet floats closer to the rail, exactly as a heavier load would, and the coil current still returns to zero: Δg = (2g* + h′)·α<sub>Br</sub>·ΔT/2.</p>
+  <div class="two-up wide">
+    <div class="figure">
+      <div class="figure-title">Float-gap shift against magnet temperature <span data-simulated="closed"></span></div>
+      <div id="thermal-chart"></div>
+      <p class="figure-caption">α<sub>Br</sub> = −0.0012 /K (PHYSICS §12). Anchors for +40 K: −0.195 / −0.416 / −0.891 mm (DRAWER / DOOR / WALL and HEAVY), FAB-LEV-014; the dynamic shift is checked on Heave1 with a compressed ramp and abs(i) &lt; 5 mA.</p>
+    </div>
+    <div class="panel" style="margin-top:1rem">
+      <h3>Warm the magnets</h3>
+      <div class="controls">
+        <label class="slider"><span>magnet temperature rise ΔT</span><output id="th-out" for="th-dt">+40 K</output>
+          <input type="range" id="th-dt" min="-20" max="60" step="1" value="40"></label>
+      </div>
+      <div class="readouts" id="th-readouts" style="grid-template-columns: repeat(2, minmax(0, 1fr))">
+        <div class="stat"><span class="stat-label"><span>remanence B<sub>r</sub></span></span><span class="stat-value num" id="th-br">–</span><span class="stat-note">relative to 20 °C</span></div>
+        <div class="stat"><span class="stat-label">equivalent load change</span><span class="stat-value num" id="th-load">–</span><span class="stat-note">1/(1 + αΔT)² − 1</span></div>
+        <div class="stat"><span class="stat-label">DOOR float gap</span><span class="stat-value num" id="th-door">–</span><span class="stat-note">g* = 5.000 mm at 20 °C</span></div>
+        <div class="stat"><span class="stat-label">WALL float gap</span><span class="stat-value num" id="th-wall">–</span><span class="stat-note">g* = 10.000 mm at 20 °C</span></div>
+      </div>
+      <p class="small muted">Magnet limit 80 °C (OverTemp, PHYSICS §18), so ΔT above +60 K is outside the operating range. The linear form above is what FAB-LEV-014 anchors; the readouts use it too.</p>
+      <p class="badges"><span data-tier="v"></span> <span class="req">FAB-LEV-014</span></p>
+    </div>
+  </div>
+
+  <h2 id="notes">What this page shows, and what it does not</h2>
+  <ul class="note-list">
+    <li><strong>Live, in WebAssembly:</strong> the zero-power float, the load step, m̂ convergence, the band clamp and the PayloadMismatch degrade run the Rust controller (fabrail-core through fabrail-rt, the firmware's group code) on the Heave1 plant tier: one vertical degree of freedom, co-energy magnets, voltage-mode coils with eddy lag, sensor noise. Heave1 has no travel axis; the full rigid body (Carriage6) is on the Glide and Touch pages.</li>
+    <li><strong>The payload is emulated.</strong> The browser ABI has no mass input, so a payload Δm is applied as a steady vertical floor acceleration a<sub>z</sub> = g₀·Δm/m*. The downward force on the body and the zero-power equilibrium are identical; the inertia stays m*, and the structure accelerometer also sees a<sub>z</sub>, which is why the page ramps it slowly.</li>
+    <li><strong>Control off is a closed-form model</strong> in JavaScript (coil current 0, no eddy lag, no dissipation, rigid stops). The engine itself is never switched off.</li>
+    <li><strong>HEAVY runs on Heave1 here,</strong> the tier its acceptance uses (with Travel1d for travel); the HEAVY six-degree-of-freedom model is not used on this page.</li>
+    <li>Nothing here is a hardware measurement, and no standard is claimed. "Zero friction" is a direction: the modelled equivalent friction of a levitated carriage is about 1e-3 to 1e-2, never 0.</li>
+  </ul>
+
+  <aside class="tier-legend" aria-label="Tier badges">
+    <strong>Tier badges</strong>
+    <ul>
+      <li><span class="badge badge--v">✅ V</span> verified in simulation</li>
+      <li><span class="badge badge--s">🔶 S</span> simplified model</li>
+      <li><span class="badge badge--r">🧪 R</span> research tier</li>
+      <li><span class="badge badge--m">🗺️ M</span> roadmap</li>
+      <li><span class="badge badge--f">🔭 frontier</span> overrides the badge: theoretical, never a product</li>
+    </ul>
+    <p>Technology maturity (TRL) is shown separately and never raises a badge. Badges follow <code>docs/SPECIFICATION.md</code> §0.5.</p>
+  </aside>
+</main>
+<footer class="site-footer">
+  <span>fabrail · MIT licence · simulation results, not hardware measurements</span>
+  <span class="selftest-badge" data-selftest data-state="pending">selftest: pending</span>
+</footer>
+<script src="assets/data/anchors.js"></script>
+<script src="assets/js/nav.js"></script>
+<script src="assets/js/formulas.js"></script>
+<script src="assets/js/plot.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/engine.js"></script>
+<script src="assets/js/scene-levitate.js"></script>
+</body>
+</html>

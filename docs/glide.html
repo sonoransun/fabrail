@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Glide · fabrail</title>
+<meta name="description" content="S-curves, the log-damped terminus, the energy and momentum governor, and pinch force.">
+<meta name="color-scheme" content="dark light">
+<script src="assets/js/theme.js"></script>
+<link rel="stylesheet" href="assets/css/site.css">
+<style>
+/* glide (owner W2). Under reduced motion every animation on this page falls back to a
+   static keyframe: a move is computed to its end at once and drawn as its final frame
+   with complete charts, and the pinch dial needle does not sweep. */
+@media (prefers-reduced-motion: reduce) {
+  .scene *, .scene *::before, .scene *::after { animation: none !important; transition: none !important; }
+}
+.btn[hidden] { display: none; }
+.page > .scene.live {
+  display: block; min-height: 0; padding: 0; text-align: left; place-items: initial;
+  background: none; border: 0; color: inherit; font-family: inherit; font-size: inherit;
+}
+.gl-stage canvas { touch-action: pan-y; }
+.gl-grid { display: grid; gap: 1rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.gl-grid > .figure { margin-top: 1rem; }
+.gl-readouts { grid-template-columns: repeat(auto-fill, minmax(min(100%, 8.6rem), 1fr)); }
+.stat .meter { display: block; height: 6px; margin-top: 0.35rem; border-radius: 3px; background: var(--line); position: relative; overflow: hidden; }
+.stat .meter > span { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--accent); border-radius: 3px; }
+.stat .meter > i { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--plot-ref); }
+.panel {
+  padding: 0.8rem 0.9rem; background: var(--bg-panel); border: 1px solid var(--hair);
+  border-radius: var(--radius); font-family: var(--font-sans); font-size: 0.88rem;
+}
+.panel h3 { margin-top: 0; font-family: var(--font-sans); font-size: 0.92rem; }
+.panel p { margin-top: 0.4rem; color: var(--ink-2); }
+.req { font-family: var(--font-mono); font-size: 0.78em; color: var(--ink-3); }
+.badges { display: flex; flex-wrap: wrap; gap: 0.35rem 0.6rem; align-items: center; margin-top: 0.7rem; font-family: var(--font-sans); font-size: 0.84rem; color: var(--ink-2); }
+.engine-line { font-family: var(--font-mono); font-size: 0.76rem; color: var(--ink-3); }
+.stage-controls .seg { background: var(--bg-elev); }
+.dial-wrap { display: grid; gap: 1rem; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); align-items: start; margin-top: 1rem; }
+.dial-wrap canvas { width: 100%; display: block; }
+.dial-fig { margin-top: 0; }
+.limit-list { list-style: none; padding: 0; margin-top: 0.5rem; font-family: var(--font-sans); font-size: 0.84rem; color: var(--ink-2); }
+.limit-list li { display: flex; gap: 0.5rem; align-items: baseline; }
+.limit-list li + li { margin-top: 0.25rem; }
+.limit-list b { font-variant-numeric: tabular-nums; min-width: 3.6rem; color: var(--ink); }
+.preset-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.6rem; }
+.preset-row .btn { min-height: 34px; padding: 0.3rem 0.65rem; font-size: 0.8rem; }
+.num-table td.num, .num-table th.num { text-align: right; white-space: nowrap; }
+.note-list { font-family: var(--font-sans); font-size: 0.9rem; color: var(--ink-2); }
+select.btn { appearance: auto; width: 100%; max-width: 100%; white-space: normal; }
+@media (max-width: 900px) {
+  .gl-grid, .dial-wrap { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .gl-stage .stage-chip { position: static; display: block; margin: 0.6rem 0.6rem 0; border-radius: 8px; }
+}
+</style>
+</head>
+<body data-page="glide">
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <a class="wordmark" href="index.html" aria-label="fabrail home">FAB<span>·</span>RAIL</a>
+  <nav class="site-nav" aria-label="Site pages" data-site-nav>
+    <a href="index.html">Overview</a>
+    <a href="levitate.html">Levitate</a>
+    <a href="glide.html">Glide</a>
+    <a href="touch.html">Touch</a>
+    <a href="quake.html">Quake</a>
+    <a href="villa.html">Villa</a>
+    <a href="sovereign.html">Sovereign</a>
+    <a href="frontier.html">Frontier</a>
+    <a href="examples.html">Examples</a>
+  </nav>
+  <button class="theme-btn" type="button" data-theme-toggle aria-label="Toggle colour theme" title="Toggle colour theme">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"></path></svg>
+  </button>
+</header>
+<main id="main" class="page">
+  <p class="eyebrow">Motion</p>
+  <h1>Stopping is a curve.</h1>
+  <p class="lede">Every move is planned from the kinetic energy and momentum a person could meet, and every arrival is log-damped.</p>
+  <p>A move to a travel end has three parts. A jerk-limited S-curve launches the carriage to a cruise speed that the governor sets from the rated mass. At a precomputed distance the terminus takes over: a constant-jerk blend, then an exponential capture in which the distance to go shrinks by the same fraction every τ seconds, then a short quintic that lands with zero speed and zero acceleration. On a logarithmic axis the capture is a straight line, and that is what "log-damped" means here.</p>
+  <div class="badges"><span data-tier="v"></span> <span>S-curve, stop distance, terminus, governor, speed caps, clamp force <span class="req">FAB-PRP-005 · FAB-HAP-013…016 · FAB-SAF-001 · 002 · 005</span></span> <span data-tier="s"></span> <span>force–time profile <span class="req">FAB-SAF-004</span></span></div>
+
+  <section class="scene live wide" id="scene" aria-label="Motion scene">
+    <figure class="stage gl-stage" id="gl-stage">
+      <div class="stage-chip" id="gl-chip" aria-live="polite">Loading the browser engine…</div>
+      <canvas id="gl-canvas" role="img" aria-describedby="gl-desc" aria-label="Side view of a levitated drawer or sliding door on its rail with a distance ruler, the target, the terminus zone and the current phase of the move."></canvas>
+      <div class="stage-controls">
+        <div class="seg" data-choice-group id="gl-class" aria-label="Class">
+          <button data-value="drawer" aria-pressed="true">DRAWER 0.30 m</button>
+          <button data-value="door">DOOR 1.0 m</button>
+        </div>
+        <button class="btn btn--primary" id="gl-open" type="button">Open</button>
+        <button class="btn" id="gl-close" type="button">Close</button>
+        <div class="seg" data-choice-group id="gl-speed" aria-label="Playback speed">
+          <button data-value="1" aria-pressed="true">real time</button>
+          <button data-value="0.25">×0.25</button>
+        </div>
+        <span data-simulated="" id="gl-sim"></span>
+        <span class="engine-line" id="gl-engine">engine: loading</span>
+      </div>
+    </figure>
+    <p class="small muted" id="gl-desc">The drawing is schematic; positions, speeds and energies are the engine's plant truth. With the WebAssembly engine loaded, every move is the Rust supervisor, motion planner, terminus and cascade (fabrail-core through fabrail-rt) closing the loop on the Carriage6 rigid-body plant in voltage coil mode, stepped in your browser.</p>
+
+    <div class="readouts gl-readouts" id="gl-readouts">
+      <div class="stat"><span class="stat-label">position x</span><span class="stat-value num" id="gr-x">–</span><span class="stat-note" id="gr-x-note">target –</span></div>
+      <div class="stat"><span class="stat-label">speed</span><span class="stat-value num" id="gr-v">–</span><span class="stat-note" id="gr-v-note">cap –</span></div>
+      <div class="stat"><span class="stat-label">kinetic energy at the governor mass</span><span class="stat-value num" id="gr-e">–</span><span class="meter" aria-hidden="true"><span id="gr-e-bar"></span><i id="gr-e-cap" style="left:100%"></i></span><span class="stat-note">cap 1.69 J (red mark = 0.90 plan)</span></div>
+      <div class="stat"><span class="stat-label">phase</span><span class="stat-value" id="gr-phase">–</span><span class="stat-note" id="gr-mode">–</span></div>
+      <div class="stat"><span class="stat-label">capture fit τ</span><span class="stat-value num" id="gr-tau">–</span><span class="stat-note" id="gr-r2">R² –</span></div>
+      <div class="stat"><span class="stat-label">terminus arrival</span><span class="stat-value num" id="gr-arr">–</span><span class="stat-note" id="gr-arr-note">closed form –</span></div>
+    </div>
+
+    <div class="gl-grid">
+      <div class="figure">
+        <div class="figure-title">Distance to go, on a log scale <span data-simulated="" id="semi-sim"></span></div>
+        <div id="semi-chart"></div>
+        <p class="figure-caption" id="semi-caption">During the capture the distance to go is d<sub>b</sub>·e<sup>−t/τ</sup>: a straight line on this axis. The dashed line is the closed-form terminus from the measured handover speed (PHYSICS §16.1). FAB-HAP-013 asks a semilog fit with R² ≥ 0.999 on Carriage6 while the floor is quiet.</p>
+      </div>
+      <div class="figure">
+        <div class="figure-title">Speed during the move <span data-simulated="" id="speed-sim"></span></div>
+        <div id="speed-chart"></div>
+        <p class="figure-caption">The cruise sits under two lines: the class cap from 1.69 J and 22.3 kg·m/s at the governor mass, and the governor's planning cap at 0.90 of that energy (≈ 0.949 of the speed) and 0.95 of that momentum; the supervisor plans 2 % inside it (PHYSICS §16).</p>
+      </div>
+    </div>
+  </section>
+
+  <h2 id="scurve">The S-curve and the stopping distance</h2>
+  <p>Acceleration never jumps: jerk is bounded, so the acceleration ramps up, holds, and ramps down, and so does the deceleration. Seven segments in all. The same limits fix how far the carriage needs to stop from speed v: d<sub>stop</sub> = v²/(2a) + v·a/(2j) when v ≥ a²/j, else v·√(v/j).</p>
+  <div class="panel" style="margin-top:1rem">
+    <div class="controls" style="margin-top:0">
+      <div><span class="small muted">Class</span><br>
+        <div class="seg" data-choice-group id="sc-class" aria-label="Class for the S-curve">
+          <button data-value="drawer" aria-pressed="true">DRAWER</button>
+          <button data-value="door">DOOR</button>
+          <button data-value="wall">WALL</button>
+          <button data-value="heavy">HEAVY</button>
+        </div>
+      </div>
+      <label class="slider"><span>move length L</span><output id="sc-L-out" for="sc-L">300 mm</output>
+        <input type="range" id="sc-L" min="0" max="1000" step="1" value="1000" aria-describedby="sc-L-note"></label>
+    </div>
+    <p class="small muted" id="sc-L-note">The slider spans 1 mm to the class travel on a log scale. v<sub>max</sub> is the class cap, a and j the class motion limits.</p>
+    <div class="readouts" id="sc-readouts">
+      <div class="stat"><span class="stat-label">move time</span><span class="stat-value num" id="sc-T">–</span></div>
+      <div class="stat"><span class="stat-label">peak speed</span><span class="stat-value num" id="sc-vp">–</span><span class="stat-note" id="sc-vp-note">–</span></div>
+      <div class="stat"><span class="stat-label">limits v · a · j</span><span class="stat-value num" id="sc-lim" style="font-size:0.95rem">–</span></div>
+      <div class="stat"><span class="stat-label">stop distance at the cap</span><span class="stat-value num" id="sc-dstop">–</span><span class="stat-note" id="sc-dstop-note">anchor –</span></div>
+    </div>
+  </div>
+  <div class="gl-grid wide">
+    <div class="figure">
+      <div class="figure-title">Speed <span data-simulated="closed"></span></div>
+      <div id="sc-v-chart"></div>
+    </div>
+    <div class="figure">
+      <div class="figure-title">Acceleration, with the seven jerk segments <span data-simulated="closed"></span></div>
+      <div id="sc-a-chart"></div>
+      <p class="figure-caption">Shaded: the constant-jerk segments +j, 0, −j, cruise, −j, 0, +j (short segments are left unlabelled).</p>
+    </div>
+  </div>
+  <p class="small muted">Closed form of PHYSICS §16 (assets/js/formulas.js, checked against the Rust implementation). The anchors 33.43 / 36.31 / 8.86 / 4.91 mm are FAB-PRP-005 at the caps (SPECIFICATION quotes the first two at the rounded caps 0.2654 and 0.1838 m/s).</p>
+
+  <h2 id="governor">The governor: rated mass, not hopeful mass</h2>
+  <p>The speed caps come from a kinetic-energy limit of 1.69 J and a momentum limit of 22.3 kg·m/s, the low-energy basis of power-operated pedestrian doors (checked in simulation against numeric limits from ANSI/BHMA A156.19-2019 and A156.38-2019). The governor evaluates them with m<sub>gov</sub> = max(m<sub>rated</sub>, 1.05·m̂): the estimate m̂ can only make the carriage slower, never faster, so a mass estimate sabotaged to half the true mass changes nothing (FAB-SAF-001). The governor plans at 0.90 of the energy cap and 0.95 of the momentum cap, which leaves a margin for tracking error and rail disturbances; the independent integer monitor trips on a cap only while the drive itself does positive work, and a drawer thrown past its cap by hand is met by governor damping, not by a trip.</p>
+  <div class="panel" style="margin-top:1rem">
+    <div class="controls" style="margin-top:0">
+      <div><span class="small muted">Class</span><br>
+        <div class="seg" data-choice-group id="gv-class" aria-label="Class for the governor">
+          <button data-value="drawer">DRAWER</button>
+          <button data-value="door" aria-pressed="true">DOOR</button>
+          <button data-value="wall">WALL</button>
+          <button data-value="heavy">HEAVY</button>
+        </div>
+      </div>
+      <label class="slider"><span>estimated mass m̂</span><output id="gv-m-out" for="gv-m">–</output>
+        <input type="range" id="gv-m" min="0" max="1000" step="1" value="500"></label>
+    </div>
+    <div class="preset-row">
+      <button class="btn" type="button" id="gv-sabotage">Sabotage m̂ to 0.5·m</button>
+      <button class="btn" type="button" id="gv-true">m̂ = true mass</button>
+      <button class="btn" type="button" id="gv-heavy">m̂ = 1.3·m (overloaded)</button>
+    </div>
+    <div class="readouts" id="gv-readouts">
+      <div class="stat"><span class="stat-label"><span>governor mass m<sub>gov</sub></span></span><span class="stat-value num" id="gv-mgov">–</span><span class="stat-note" id="gv-mgov-note">–</span></div>
+      <div class="stat"><span class="stat-label"><span>energy cap √(2E/m<sub>gov</sub>)</span></span><span class="stat-value num" id="gv-ve">–</span></div>
+      <div class="stat"><span class="stat-label"><span>momentum cap p/m<sub>gov</sub></span></span><span class="stat-value num" id="gv-vp">–</span></div>
+      <div class="stat"><span class="stat-label">planned cruise</span><span class="stat-value num" id="gv-plan">–</span><span class="stat-note" id="gv-plan-note">–</span></div>
+    </div>
+  </div>
+  <div class="figure wide">
+    <div class="figure-title">Speed caps against the governor mass <span data-simulated="closed"></span></div>
+    <div id="gv-chart"></div>
+    <p class="figure-caption">Energy cap √(2E/m) and momentum cap p/m on log axes (E = 1.69 J, p = 22.3 kg·m/s; HEAVY has no momentum basis and moves only on hold-to-run at 0.025 m/s). Dashed: the governor's planning caps (D4). The dot is the planned cruise at m<sub>gov</sub>: it moves only when m̂ rises above m<sub>rated</sub>/1.05. PHYSICS §16; FAB-SAF-001, FAB-SAF-002.</p>
+  </div>
+
+  <h2 id="pinch">Pinch force: F = v·√(m·k)</h2>
+  <p>If something is caught at the closing edge, the carriage's kinetic energy goes into squeezing it. For a body part of stiffness k the peak quasi-static force is F = √(2E·k) = v·√(m·k). That is why the energy cap matters more than any speed number, and why an edge seal (a soft spring in series with the hand) cuts the force. The directional clamp separately bounds the stall force the drive may apply.</p>
+  <div class="dial-wrap wide">
+    <div class="figure dial-fig">
+      <div class="figure-title">Peak clamp force <span data-simulated="closed"></span></div>
+      <canvas id="dial-canvas" role="img" aria-label="Dial gauge of the peak clamp force with marks at 67, 80, 150 and 400 newtons."></canvas>
+      <p class="figure-caption" id="dial-caption">–</p>
+    </div>
+    <div class="panel">
+      <div class="controls" style="margin-top:0">
+        <label class="slider"><span>speed v</span><output id="pd-v-out" for="pd-v">0.265 m/s</output>
+          <input type="range" id="pd-v" min="0.005" max="0.4" step="0.001" value="0.265"></label>
+        <label class="slider"><span>moving mass m</span><output id="pd-m-out" for="pd-m">48 kg</output>
+          <input type="range" id="pd-m" min="0" max="1000" step="1" value="500"></label>
+        <label class="slider" style="grid-template-columns: 1fr"><span>what is caught</span>
+          <select class="btn" id="pd-k" aria-label="Body model">
+            <option value="hand-edge">a hand behind a 10 N/mm edge seal (8.82 N/mm)</option>
+            <option value="hand">a hand, 75 N/mm (ISO/TS 15066)</option>
+            <option value="chest">a chest, 25 N/mm (ISO/TS 15066)</option>
+            <option value="chest-edge">a chest behind the edge seal (7.14 N/mm)</option>
+          </select></label>
+      </div>
+      <div class="preset-row">
+        <button class="btn" type="button" data-pinch="drawer">DRAWER at its cap</button>
+        <button class="btn" type="button" data-pinch="door">DOOR opening</button>
+        <button class="btn" type="button" data-pinch="doorclose">DOOR closing</button>
+        <button class="btn" type="button" data-pinch="wall">WALL at its cap</button>
+        <button class="btn" type="button" data-pinch="unattended">unattended close, 48 kg</button>
+      </div>
+      <ul class="limit-list" aria-label="Force limits on the dial">
+        <li><b>67 N</b> stall force, low-energy operation (ANSI/BHMA A156.19-2019; the unsensed static clamp)</li>
+        <li><b>80 N</b> must be reached within 5 s of a stall (EN 16005, 2011 draft)</li>
+        <li><b>150 N</b> static force with presence sensing, or in the last 50 mm (EN 16005, 2011 draft)</li>
+        <li><b>400 N</b> dynamic peak, for at most 0.75 s (EN 16005, 2011 draft)</li>
+      </ul>
+      <p class="small muted">Numeric limits only: nothing on this page claims compliance with either standard. The chest and hand stiffnesses are ISO/TS 15066:2016 Annex A body-model values. Anchors at 1.69 J: chest 290.7 N, hand 503.5 N, hand behind the seal 172.7 N; WALL at its 0.497 J cap against the chest 157.7 N (FAB-SAF-005).</p>
+    </div>
+  </div>
+
+  <h2 id="notes">What this page shows, and what it does not</h2>
+  <ul class="note-list">
+    <li><strong>Live, in WebAssembly:</strong> the moves on the stage are the real supervisor, S-curve planner, governor, terminus and cascade on the Carriage6 rigid-body plant (six degrees of freedom, co-energy magnets, LSM, contacts, sensor noise) in voltage coil mode. The dashed reference lines are closed forms.</li>
+    <li><strong>Without the engine</strong> the stage animates the closed-form reference of the same move (formulas.js closeProfile), labelled as such: that is the path the controller is asked to follow, not a simulation of the carriage.</li>
+    <li>WALL and HEAVY moves are slow by design (0.0446 and 0.025 m/s); they appear here only in the closed-form sections.</li>
+    <li>Pinch forces are the quasi-static energy form on linear body springs. They are not measurements, and dB(A) or FEM-validated forces are not claimed anywhere on this site.</li>
+  </ul>
+
+  <aside class="tier-legend" aria-label="Tier badges">
+    <strong>Tier badges</strong>
+    <ul>
+      <li><span class="badge badge--v">✅ V</span> verified in simulation</li>
+      <li><span class="badge badge--s">🔶 S</span> simplified model</li>
+      <li><span class="badge badge--r">🧪 R</span> research tier</li>
+      <li><span class="badge badge--m">🗺️ M</span> roadmap</li>
+      <li><span class="badge badge--f">🔭 frontier</span> overrides the badge: theoretical, never a product</li>
+    </ul>
+    <p>Technology maturity (TRL) is shown separately and never raises a badge. Badges follow <code>docs/SPECIFICATION.md</code> §0.5.</p>
+  </aside>
+</main>
+<footer class="site-footer">
+  <span>fabrail · MIT licence · simulation results, not hardware measurements</span>
+  <span class="selftest-badge" data-selftest data-state="pending">selftest: pending</span>
+</footer>
+<script src="assets/data/anchors.js"></script>
+<script src="assets/js/nav.js"></script>
+<script src="assets/js/formulas.js"></script>
+<script src="assets/js/plot.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/engine.js"></script>
+<script src="assets/js/scene-glide.js"></script>
+</body>
+</html>

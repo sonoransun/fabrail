@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quake · fabrail</title>
+<meta name="description" content="P-wave early warning on the rail: lead time against distance, STA/LTA and Pd/τc detection, fused alerts and land-first class actions, with the limits stated.">
+<meta name="color-scheme" content="dark light">
+<script src="assets/js/theme.js"></script>
+<link rel="stylesheet" href="assets/css/site.css">
+<style>
+/* quake (owner W3; scenes in assets/js/scene-quake.js). Under reduced motion every
+   animation on this page falls back to a static keyframe: the map draws one frame and
+   waits for the Play button, and the detector replay only runs when asked. */
+@media (prefers-reduced-motion: reduce) {
+  .scene *, .scene *::before, .scene *::after,
+  .quake-stage *, .fsm li { animation: none !important; transition: none !important; }
+}
+
+.quake-stage figcaption {
+  padding: 0 0.75rem 0.7rem; background: var(--bg-panel);
+  font-family: var(--font-sans); font-size: 0.8rem; color: var(--ink-3);
+}
+.stage-clock { margin-left: auto; font-family: var(--font-mono); font-size: 0.78rem; color: var(--ink-2); }
+.quake-controls { margin-top: 1rem; }
+.quake-controls .choice { display: grid; gap: 0.3rem; align-content: start; }
+.quake-controls .choice .seg button { min-height: 36px; }
+.readouts .stat-value.is-bad { color: var(--wave-s); }
+.readouts .stat-value.is-good { color: var(--good); }
+.verdict {
+  margin-top: 1rem; padding: 0.7rem 0.9rem; border-radius: var(--radius);
+  background: var(--bg-panel); border: 1px solid var(--line); border-left: 3px solid var(--wave-p);
+  font-family: var(--font-sans); font-size: 0.9rem; color: var(--ink);
+}
+.verdict[data-tone="late"] { border-left-color: var(--wave-s); }
+.verdict[data-tone="none"] { border-left-color: var(--ink-3); }
+
+.det-grid {
+  display: grid; gap: 0 1rem; margin-top: 0.4rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
+}
+.det-grid .figure { margin-top: 1rem; }
+.source-line {
+  margin-top: 1rem; display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.7rem;
+  font-family: var(--font-sans); font-size: 0.86rem; color: var(--ink-2);
+}
+.det-controls {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.8rem; margin-top: 1rem;
+  font-family: var(--font-sans); font-size: 0.82rem; color: var(--ink-3);
+}
+.det-controls .btn { min-height: 36px; padding: 0.35rem 0.8rem; }
+
+.fsm {
+  list-style: none; padding: 0; margin: 1rem 0 0; display: flex; flex-wrap: wrap; gap: 0.35rem;
+  font-family: var(--font-sans); font-size: 0.8rem;
+}
+.fsm li {
+  margin: 0; display: inline-flex; align-items: baseline; gap: 0.4em;
+  padding: 0.3rem 0.6rem; border-radius: 999px; border: 1px solid var(--line);
+  background: var(--bg-panel); color: var(--ink-2); transition: background 0.2s, color 0.2s;
+}
+.fsm li + li { margin-top: 0; }
+.fsm li::after { content: "→"; color: var(--ink-3); margin-left: 0.25em; }
+.fsm li:last-child::after { content: ""; margin: 0; }
+.fsm .fsm-t { font-family: var(--font-mono); font-size: 0.72rem; color: var(--ink-3); }
+.fsm li[data-reached] { color: var(--ink); border-color: var(--ink-3); }
+.fsm li[aria-current="step"] { color: var(--bg-deep); background: var(--accent); border-color: var(--accent); }
+.fsm li[aria-current="step"] .fsm-t { color: var(--bg-deep); }
+
+.empty-note {
+  margin-top: 1rem; padding: 0.7rem 0.9rem; border: 1px dashed var(--line); border-radius: var(--radius);
+  font-family: var(--font-sans); font-size: 0.86rem; color: var(--ink-3);
+}
+.class-verdicts { list-style: none; padding: 0; font-family: var(--font-sans); font-size: 0.88rem; }
+.class-verdicts li { margin: 0; padding: 0.45rem 0 0.45rem 1.1rem; position: relative; border-bottom: 1px solid var(--hair); color: var(--ink-2); }
+.class-verdicts li::before {
+  content: ""; position: absolute; left: 0; top: 0.95rem; width: 9px; height: 9px; border-radius: 50%; background: var(--key, var(--ink-3));
+}
+.class-verdicts strong { color: var(--ink); }
+.class-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 0.45em; background: var(--key); vertical-align: 0.05em; }
+.quake-table td.num, .quake-table th.num { text-align: right; }
+.quake-table td:first-child { white-space: nowrap; }
+.cards > .card:not(a):hover { border-color: var(--line); box-shadow: none; }
+.card p .badge { margin-left: 0.2em; }
+
+@media (max-width: 640px) {
+  .quake-stage .stage-chip { position: static; display: block; margin: 0.6rem 0.6rem 0; border-radius: 8px; }
+  .stage-clock { margin-left: 0; width: 100%; }
+}
+</style>
+</head>
+<body data-page="quake">
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <a class="wordmark" href="index.html" aria-label="fabrail home">FAB<span>·</span>RAIL</a>
+  <nav class="site-nav" aria-label="Site pages" data-site-nav>
+    <a href="index.html">Overview</a>
+    <a href="levitate.html">Levitate</a>
+    <a href="glide.html">Glide</a>
+    <a href="touch.html">Touch</a>
+    <a href="quake.html">Quake</a>
+    <a href="villa.html">Villa</a>
+    <a href="sovereign.html">Sovereign</a>
+    <a href="frontier.html">Frontier</a>
+    <a href="examples.html">Examples</a>
+  </nav>
+  <button class="theme-btn" type="button" data-theme-toggle aria-label="Toggle colour theme" title="Toggle colour theme">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"></path></svg>
+  </button>
+</header>
+<main id="main" class="page">
+  <p class="eyebrow">Seismic early warning · land-first</p>
+  <h1>The earthquake arrives twice.</h1>
+  <p class="lede">An earthquake sends a fast, weak P-wave (a pressure wave in the rock) ahead of the slower S-wave that carries most of the shaking. The gap between them grows by <span data-q="spPerKm">0.119 s</span> for every kilometre of hypocentral distance. The rail listens for the first arrival and uses the gap to stop and land its carriages. Close to the source there is no gap to use.</p>
+
+  <div class="callout scope" role="note">
+    <p><strong>Scope, stated honestly.</strong></p>
+    <ul>
+      <li><strong>No useful on-site warning closer than about 20 km.</strong> The on-site lead is <span data-q="spPerKm">0.119 s</span> per km of hypocentral distance minus the <span data-q="onsite">1.2 s</span> decision time: about 0 s at <span data-q="r0">10.1 km</span> and <span data-q="lead20">1.18 s</span> at 20 km. That is enough to freeze (within 100 ms of the pick) but not to land before the S-wave.</li>
+      <li><strong>Every network alert on this page is synthetic or injected.</strong> fabrail consumes alerts; it is not an early-warning provider, and a live ShakeAlert or JMA feed is roadmap.</li>
+      <li>The seismic action is not a rated safety function (SAFETY.md, SF-08). It changes the state the rail is in when the shaking arrives. It does not reduce the shaking or shield the building.</li>
+      <li>All records are synthetic (Boore stochastic method, with the P phase scaled so Pd follows Wu–Zhao). The Pd and τc thresholds are calibration values that have not been validated on real records.</li>
+    </ul>
+  </div>
+
+  <h2 id="map-title">Two wavefronts, one house</h2>
+  <p>The fault ruptures at depth. Both waves leave at once; the P-wave travels at <span data-q="vp">6 km/s</span>, the S-wave at <span data-q="vs">3.5 km/s</span>. A structure-mounted accelerometer in the house picks the P arrival, and <span data-q="onsite">1.2 s</span> later the detector has enough signal to decide. A regional network may also send an alert about <span data-q="net">8 s</span> after the origin. Whichever decision comes first starts the class actions; what is left before the S-wave is the lead. Move the house with the sliders below.</p>
+
+  <figure class="stage quake-stage wide" id="map-stage">
+    <div class="stage-chip" id="map-chip" aria-live="polite">The P-wave leaves the hypocentre ahead of the S-wave.</div>
+    <canvas id="map-canvas" role="img" aria-describedby="map-summary" aria-label="Animated plan view: P and S wavefronts expand from the epicentre toward a house; rings mark where on-site warning is about zero and where a network alert would arrive after the S-wave; a timeline strip at the bottom marks the origin, the P arrival, the decision, the network alert and the S arrival, and brackets the lead. The readouts below give the same numbers."></canvas>
+    <div class="stage-controls">
+      <button class="btn" id="map-play" type="button" aria-pressed="false" hidden>Play animation</button>
+      <button class="btn btn--ghost" id="map-restart" type="button" hidden>Restart</button>
+      <span data-simulated="closed"></span>
+      <span class="stage-clock num" id="map-clock">closed forms, PHYSICS §20</span>
+    </div>
+    <figcaption>Plan view from closed forms (PHYSICS §20): straight rays in a uniform crust at V<sub>p</sub> 6.0 and V<sub>s</sub> 3.5 km/s, so each front meets the surface on a circle of radius √((V·t)² − h²). The house, the stations and the geography are schematic. The shaded disc is where the on-site lead is at most 0 s; the dashed ring is 20 km hypocentral; inside the dotted ring a synthetic network alert arrives after the S-wave.</figcaption>
+  </figure>
+
+  <div class="controls quake-controls wide" id="quake-controls">
+    <label class="slider"><span>Hypocentral distance R</span><output data-readout="r_hyp_km">40 km</output>
+      <input type="range" id="in-r" data-param="r_hyp_km" data-unit="km" data-digits="3" min="2" max="200" step="1" value="40"></label>
+    <label class="slider"><span>Focal depth h</span><output data-readout="depth_km">10 km</output>
+      <input type="range" id="in-depth" data-param="depth_km" data-unit="km" data-digits="2" min="0" max="30" step="1" value="10"></label>
+    <label class="slider"><span>Magnitude M</span><output data-readout="magnitude">7</output>
+      <input type="range" id="in-m" data-param="magnitude" data-digits="2" min="5" max="8" step="0.1" value="7"></label>
+    <label class="slider"><span>On-site decision after P</span><output data-readout="t_onsite_s">1.2 s</output>
+      <input type="range" id="in-onsite" data-param="t_onsite_s" data-unit="s" data-digits="2" min="0.5" max="3" step="0.1" value="1.2"></label>
+    <label class="slider"><span>Network alert after origin (synthetic)</span><output data-readout="t_network_s">8 s</output>
+      <input type="range" id="in-net" data-param="t_network_s" data-unit="s" data-digits="3" min="4" max="15" step="0.5" value="8"></label>
+    <div class="choice">
+      <span class="slider-label">Alert sources</span>
+      <div class="seg" data-choice-group id="src-choice" aria-label="Alert sources">
+        <button type="button" data-value="both" aria-pressed="true">Local + synthetic network</button>
+        <button type="button" data-value="local" aria-pressed="false">Local pick only</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="readouts wide" id="map-summary" aria-live="polite">
+    <div class="stat"><span class="stat-label">P arrives</span><span class="stat-value num" data-out="tP">6.67 s</span><span class="stat-note">after origin</span></div>
+    <div class="stat"><span class="stat-label">S arrives</span><span class="stat-value num" data-out="tS">11.4 s</span><span class="stat-note" data-out="sp">S − P = 4.76 s</span></div>
+    <div class="stat"><span class="stat-label">On-site decision</span><span class="stat-value num" data-out="tDec">7.87 s</span><span class="stat-note" data-out="decNote">expected level L2 · PROTECT</span></div>
+    <div class="stat"><span class="stat-label">Network alert</span><span class="stat-value num" data-out="tNet">8 s</span><span class="stat-note">synthetic, not a live feed</span></div>
+    <div class="stat"><span class="stat-label">Lead before S</span><span class="stat-value num" data-out="lead">3.57 s</span><span class="stat-note" data-out="leadNote">from the on-site decision</span></div>
+    <div class="stat"><span class="stat-label">Expected Pd · τc</span><span class="stat-value num" data-out="pd">0.27 cm</span><span class="stat-note" data-out="tauc">τc 2.29 s (Wu–Kanamori)</span></div>
+  </div>
+  <p class="verdict" id="map-verdict" role="status">At 40 km hypocentral the on-site decision leaves about 3.6 s: enough to freeze and land every class before the S-wave.</p>
+
+  <h2 id="lead-title">Lead time against distance</h2>
+  <p>Two sources of warning compete. On site, the lead is the S−P time minus the decision time. From a network, it is the S travel time minus the alert latency, independent of V<sub>p</sub>. They are equal at V<sub>p</sub>·(t<sub>network</sub> − t<sub>on-site</sub>) = <span data-q="crossover">40.8 km</span>: closer than that the local pick wins, farther the network does. Below about 20 km neither leaves enough time to land. <span data-tier="v"></span></p>
+  <div class="figure wide">
+    <div class="figure-title">Warning before the S-wave, by source <span data-simulated="closed"></span></div>
+    <div id="lead-chart"></div>
+    <p class="figure-caption">On-site lead = R·(1/V<sub>s</sub> − 1/V<sub>p</sub>) − t<sub>on-site</sub>; network lead = R/V<sub>s</sub> − t<sub>network</sub>; the best lead is the larger of the two. The grey band is the best lead over an assumed crustal range, V<sub>p</sub> 5.5–6.5 km/s with V<sub>p</sub>/V<sub>s</sub> 1.65–1.80, which moves the crossover to <span data-q="crossBand">37–44 km</span>; the anchors use V<sub>p</sub> 6.0 and V<sub>s</sub> 3.5 km/s (V<sub>p</sub>/V<sub>s</sub> 1.71). The band is an illustration of velocity uncertainty, not a site model. R is hypocentral. FAB-SEI-012; PHYSICS §20; SEISMIC §2.1.</p>
+  </div>
+  <div class="table-wrap wide">
+    <table class="quake-table" id="lead-table">
+      <caption class="visually-hidden">Lead time by hypocentral distance at the anchor inputs</caption>
+      <thead><tr><th scope="col" class="num">R<sub>hyp</sub></th><th scope="col" class="num">S − P</th><th scope="col" class="num">On-site lead</th><th scope="col" class="num">Network lead</th><th scope="col" class="num">Best lead</th></tr></thead>
+      <tbody>
+        <tr data-r="10"><td class="num">10 km</td><td class="num">1.19 s</td><td class="num">0 s</td><td class="num">&lt; 0</td><td class="num"><strong>0 s</strong></td></tr>
+        <tr data-r="20"><td class="num">20 km</td><td class="num">2.38 s</td><td class="num">1.18 s</td><td class="num">&lt; 0</td><td class="num">1.18 s</td></tr>
+        <tr data-r="40.8"><td class="num">40.8 km</td><td class="num">4.86 s</td><td class="num">3.66 s</td><td class="num">3.66 s</td><td class="num">3.66 s (crossover)</td></tr>
+        <tr data-r="100"><td class="num">100 km</td><td class="num">11.9 s</td><td class="num">10.7 s</td><td class="num">20.6 s</td><td class="num">20.6 s</td></tr>
+        <tr data-r="200"><td class="num">200 km</td><td class="num">23.8 s</td><td class="num">22.6 s</td><td class="num">49.1 s</td><td class="num">49.1 s</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="small muted">Anchor inputs: V<sub>p</sub> 6.0 km/s, V<sub>s</sub> 3.5 km/s, on-site decision 1.2 s after P, synthetic network alert 8 s after origin; lead measured to the S arrival. A negative lead is reported as 0 s. The events that hurt most are often the close ones; early warning does not help there, and the design does not pretend it does.</p>
+
+  <h2 id="det-title">Picking the P-wave</h2>
+  <p>The accelerometer sits on the structure or the rail, never on the carriage, whose own motion would look like an earthquake (FAB-SEI-001). Its 500 Hz samples are decimated to 100 Hz and band-passed 0.5–20 Hz. A recursive short-term over long-term average (STA/LTA, 50 over 3000 samples) watches the vertical channel: when the ratio passes 4.0 the P-wave is picked, the carriages freeze within 100 ms (FAB-SEI-009), and the long-term average stops updating so the shaking cannot hide itself. From the pick, double integration gives the ground displacement. Its peak, Pd, grows with magnitude and falls with distance (Wu–Zhao); its dominant period, τc, grows with magnitude (Wu–Kanamori). One second of signal sets the level; three seconds refine it. <span data-tier="v" data-tier-note="STA/LTA"></span> <span data-tier="s" data-tier-note="Pd, τc, levels"></span></p>
+
+  <div class="source-line" id="det-source"><span data-simulated="illustrative" id="det-source-label"></span><span id="det-source-text">An illustrative record generated in your browser (M7, 22.4 km hypocentral). The recorded seed-42 simulator run replaces it once the site data have been generated.</span></div>
+  <div class="det-controls">
+    <button class="btn" id="det-play" type="button" aria-pressed="false">Replay the record</button>
+    <span class="num" id="det-clock">full record shown</span>
+  </div>
+  <ol class="fsm" id="fsm" aria-label="Seismic state machine">
+    <li data-state="0">NORMAL <span class="fsm-t"></span></li>
+    <li data-state="1">TRIGGERED · freeze <span class="fsm-t"></span></li>
+    <li data-state="2">PROTECT · class action <span class="fsm-t"></span></li>
+    <li data-state="3">SHAKING <span class="fsm-t"></span></li>
+    <li data-state="4">QUIET 30 s <span class="fsm-t"></span></li>
+    <li data-state="5">INSPECT · manual reset <span class="fsm-t"></span></li>
+  </ol>
+
+  <div class="det-grid wide">
+    <div class="figure">
+      <div class="figure-title">Floor acceleration at the accelerometer <span data-sim-for="accel"></span></div>
+      <div id="chart-accel"></div>
+      <p class="figure-caption" id="cap-accel">Vertical and horizontal acceleration against time after the P arrival. The P-wave shows first on the vertical channel; the S-wave arrives mostly on the horizontal.</p>
+    </div>
+    <div class="figure">
+      <div class="figure-title">STA/LTA ratio, vertical channel <span data-sim-for="ratio"></span></div>
+      <div id="chart-ratio"></div>
+      <p class="figure-caption" id="cap-ratio">Recursive STA/LTA exactly as in PHYSICS §20 (gains 1/min(k, N), LTA frozen while triggered, on at 4.0, off below 1.5), log scale.</p>
+    </div>
+    <div class="figure">
+      <div class="figure-title">Pd, peak displacement since the pick <span data-sim-for="pd"></span></div>
+      <div id="chart-pd"></div>
+      <p class="figure-caption" id="cap-pd">Published from 1 s after the pick (early window) and refined to 3 s. PROTECT needs Pd ≥ 0.35 cm on its own, or a level ≥ 2.</p>
+    </div>
+    <div class="figure">
+      <div class="figure-title">τc, dominant period since the pick <span data-sim-for="tauc"></span></div>
+      <div id="chart-tauc"></div>
+      <p class="figure-caption" id="cap-tauc">τc = 2π·√(Σu²/Σu̇²) over the window. A τc of 0.6 s or more raises the level to L2 (L3 with Pd ≥ 0.5 cm).</p>
+    </div>
+  </div>
+  <div class="readouts wide" id="det-readouts" aria-live="polite"></div>
+  <div class="figure wide" id="det-timeline-fig" hidden>
+    <div class="figure-title">The recorded run, state by state <span data-simulated="replay"></span></div>
+    <div id="chart-det-timeline"></div>
+    <p class="figure-caption" id="cap-det-timeline">Seismic state from the recorded seismic_state channel; carriage events from the run's event log.</p>
+  </div>
+  <p class="empty-note" id="det-empty">The recorded seed-42 run (WALL, synthetic M7 at 20 km epicentral and 10 km depth, Travel1d) is not in <code>assets/data/run.js</code> yet; <code>scripts/update_docs_run.py</code> writes it. Until then the figures above use the illustrative record, and no simulator number is quoted in this section.</p>
+
+  <div class="table-wrap wide">
+    <table class="quake-table">
+      <caption class="visually-hidden">Level matrix and the PROTECT rule</caption>
+      <thead><tr><th scope="col">Level</th><th scope="col">Condition, 1 s after the pick and refined to 3 s</th></tr></thead>
+      <tbody>
+        <tr><td>L3</td><td>τc ≥ 0.6 s and Pd ≥ 0.5 cm</td></tr>
+        <tr><td>L2</td><td>τc ≥ 0.6 s only</td></tr>
+        <tr><td>L1</td><td>Pd ≥ 0.5 cm only</td></tr>
+        <tr><td>L0</td><td>neither</td></tr>
+        <tr><th scope="row">PROTECT</th><td>level ≥ 2, or Pd ≥ 0.35 cm, or PGA ≥ 80 gal (any time). Otherwise the pick means FREEZE only, and a local event at level ≤ 1 clears itself.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="small muted">FAB-SEI-002 to FAB-SEI-006; the thresholds are presets in <code>control.seismic.detector</code>. An M5 at 10 km gives Pd <span data-q="pdM5">0.064 cm</span> and τc about <span data-q="tauM5">0.58 s</span>: level 0, freeze only, and no landing in at least 95 % of seeds (FAB-SEI-010).</p>
+
+  <h2 id="fusion-title">Two sources, one decision</h2>
+  <p>The local pick is on site and fast but short-sighted: it needs a second of P-wave to judge the size. A regional network sees the event near the source and can alert before the P-wave reaches a distant house; its alert also carries the origin time and location, from which the S-wave ETA is origin + R<sub>hyp</sub>/V<sub>s</sub> (within ±1 s in the tests; FAB-SEI-007). Whichever PROTECT comes first starts the class actions. <span data-tier="s" data-tier-note="fusion"></span> <span data-tier="v" data-tier-note="state machine"></span></p>
+  <div class="figure wide">
+    <div class="figure-title">Local pick, synthetic network alert and the fused state <span data-simulated="closed"></span></div>
+    <div id="chart-fusion"></div>
+    <p class="figure-caption" id="cap-fusion">Time after origin for the event set by the sliders above. The pick delay (0.13 s) is the discrete STA/LTA step response of PHYSICS §20; the network alert is an injected input, labelled synthetic wherever it appears.</p>
+  </div>
+  <ul>
+    <li><strong>Alerts can only make the rail safer.</strong> A network-only or injected alert may cause FREEZE, LAND, LOCK or a passive ride-through, nothing else. Motion triggered by an alert needs independent confirmation (a local P pick or at least two independent feeds), moves only toward a safer state in the closing direction at unattended limits, and never reverses a user's motion (FAB-EXO-119; SEISMIC §2.3, §5).</li>
+    <li><strong>A cancel is not a restart.</strong> It returns to NORMAL only when there is no local evidence of shaking (FAB-SEI-007, FAB-SEI-008).</li>
+    <li><strong>The state machine is one-way until a person looks.</strong> NORMAL → TRIGGERED → PROTECT → SHAKING → QUIET (30 s) → INSPECT, and INSPECT needs a manual reset (FAB-SEI-008).</li>
+  </ul>
+
+  <h2 id="class-title">What each class does with the seconds</h2>
+  <p>Land-first is the core default: every class action starts with FREEZE (constant deceleration at a<sub>brk</sub> = 2·a<sub>max</sub>, then hold), then lands. The bars below are closed-form estimates from the preset parameters for the event above: the stop from the class speed cap, then the descent from the hover gap to the landing gap at the preset landing speed. <span data-tier="s" data-tier-note="class actions"></span> <span data-tier="v" data-tier-note="egress door"></span></p>
+  <div class="figure wide">
+    <div class="figure-title">Class action timelines <span data-simulated="closed"></span></div>
+    <div id="chart-classes"></div>
+    <p class="figure-caption" id="cap-classes">Solid bars are actions (freeze, landing); hatched bars are resting states. The DRAWER row is an open drawer landing on its travel rollers; a drawer already on its seat simply stays seated. FAB-SEI-010; PHYSICS §21; SEISMIC §2.5.</p>
+  </div>
+  <ul class="class-verdicts" id="class-verdicts" aria-live="polite"></ul>
+  <div class="table-wrap wide">
+    <table class="quake-table">
+      <caption class="visually-hidden">Class actions in PROTECT and the rest state after the event</caption>
+      <thead><tr><th scope="col">Class</th><th scope="col">Action in PROTECT</th><th scope="col">Rest after the event</th></tr></thead>
+      <tbody>
+        <tr><td><span class="class-dot" style="--key: var(--class-drawer)"></span>DRAWER</td><td>Freeze, then stay seated, or land (on the travel rollers, or into the seat when at the seat)</td><td>Seated or landed; re-seated by hand if it failed down above 20 kg</td></tr>
+        <tr><td><span class="class-dot" style="--key: var(--class-door)"></span>DOOR</td><td>Freeze → stop → land on rollers, release ASC, <strong>never lock</strong>. A fire-rated door never opens; a non-rated egress door may open only if it can be stopped at least 1 s before t<sub>S</sub></td><td>Landed and manually operable (≤ 22.2 N)</td></tr>
+        <tr><td><span class="class-dot" style="--key: var(--class-wall)"></span>WALL</td><td>Freeze → centre only if reachable → land → lock</td><td>Landed and locked (never on an egress path)</td></tr>
+        <tr><td><span class="class-dot" style="--key: var(--class-heavy)"></span>HEAVY</td><td>As WALL</td><td>Landed and locked</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="small muted">Egress rules hold whatever the detector does: an egress door never locks, stays manually operable after landing, and a power loss at the S arrival still lands it captive on the supercapacitor (FAB-SEI-011, FAB-SEI-019).</p>
+
+  <h2 id="landfirst-title">Why land-first</h2>
+  <p>A levitated carriage has almost no friction along the rail, which is the point in daily use and the problem in an earthquake. The reasons are physical (PHYSICS §21; SEISMIC §5):</p>
+  <ol>
+    <li><strong>Lateral capacity.</strong> Passive reluctance guidance and the guide fin hold roughly 0.1–0.3 g across the rail; design-level floor shaking is 0.3–1 g.</li>
+    <li><strong>Vertical saturation.</strong> An attractive suspension can only pull. When the floor drops faster than gravity can follow, the coil saturates and the carriage lands anyway (FAB-SEI-017).</li>
+    <li><strong>Travel along the rail.</strong> An unforced levitated mass stays put while the floor moves, so it drifts relative to the floor by about the peak ground displacement (FAB-SEI-013). The seat, the locks and the end-zone bumpers hold a landed carriage.</li>
+    <li><strong>Energy.</strong> Landing needs little energy and completes on the supercapacitor even if the supply fails at the S arrival (FAB-SEI-019).</li>
+    <li><strong>Robust to detector error.</strong> A false PROTECT costs a landing. A missed one leaves the mechanics to carry the event, which they must do anyway, because near the source the warning is zero.</li>
+  </ol>
+  <div class="figure wide">
+    <div class="figure-title">Accelerations that decide the policy <span data-simulated="closed"></span></div>
+    <div id="chart-landfirst"></div>
+    <p class="figure-caption">Ranges in units of g. The guidance capacity is a core design estimate and the floor range is design-level shaking; the LSM authority is F<sub>cont</sub>/m at rated mass (WALL <span data-q="authWall">0.020 g</span>, HEAVY <span data-q="authHeavy">0.010 g</span>), which is why contactless isolation saturates. PHYSICS §6, §21; SEISMIC §4.2.</p>
+  </div>
+
+  <h2 id="readings-title">The other two readings of "pressure wave"</h2>
+  <p>The README's "mitigating seismic forces through pressure wave effects" has three readings. Early warning is the one fabrail implements as its default. The other two are research tier and disabled in every preset, and this site says why.</p>
+  <div class="cards">
+    <div class="card"><span data-tier="r"></span><h3>Mass damping</h3><p>A heavy panel driven against the building is a mass damper, but the mass ratio decides: a 5 t panel in a 10⁷ kg building is μ = 0.05 %, negligible next to the 2–5 % damping a building already has. Mass dampers are mainly wind devices.</p></div>
+    <div class="card"><span data-tier="r"></span><h3>Contactless isolation</h3><p>A levitated panel could in principle stay still while the floor moves, but the LSM can push a WALL with only 0.02 g against 0.3–1 g of floor shaking, so isolation largely saturates and the bumpers carry the event.</p></div>
+    <a class="card" href="villa.html"><span data-tier="r"></span><h3>The villa replay</h3><p>A research-tier house choreographer closes open drawers toward their seats before the S-wave, only after a local pick confirms the alert, with every residual reported.</p></a>
+    <a class="card" href="sovereign.html"><span data-tier="r"></span><h3>Sovereign tier</h3><p>Where land-first is not universal: a tower damper that rides through, a vault door that completes its close, a tsunami gate that closes only after the shaking.</p></a>
+  </div>
+
+  <aside class="tier-legend" aria-label="Tier badges">
+    <strong>Tier badges</strong>
+    <ul>
+      <li><span class="badge badge--v">✅ V</span> verified in simulation</li>
+      <li><span class="badge badge--s">🔶 S</span> simplified model</li>
+      <li><span class="badge badge--r">🧪 R</span> research tier</li>
+      <li><span class="badge badge--m">🗺️ M</span> roadmap</li>
+      <li><span class="badge badge--f">🔭 frontier</span> overrides the badge: theoretical, never a product</li>
+    </ul>
+    <p>Technology maturity (TRL) is shown separately and never raises a badge. Badges follow <code>docs/SPECIFICATION.md</code> §0.5.</p>
+  </aside>
+</main>
+<footer class="site-footer">
+  <span>fabrail · MIT licence · simulation results, not hardware measurements</span>
+  <span class="selftest-badge" data-selftest data-state="pending">selftest: pending</span>
+</footer>
+<script src="assets/data/anchors.js"></script>
+<script src="assets/data/run.js"></script>
+<script src="assets/js/nav.js"></script>
+<script src="assets/js/formulas.js"></script>
+<script src="assets/js/plot.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/engine.js"></script>
+<script src="assets/js/scene-quake.js"></script>
+</body>
+</html>

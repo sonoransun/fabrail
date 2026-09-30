@@ -1,0 +1,23 @@
+# fabrail firmware build configuration (core design §F; FAB-FW-010).
+#
+# Build with the rustup toolchain (Homebrew rustc has no thumbv7em sysroot):
+#   RUSTC=$(rustup which rustc --toolchain stable) rustup run stable cargo build --release
+# scripts/check_firmware.sh does exactly this for every class feature.
+
+[build]
+target = "thumbv7em-none-eabihf" # Cortex-M4F with the single-precision FPU (STM32G474)
+
+[target.thumbv7em-none-eabihf]
+# Flashing needs hardware and probe-rs; this firmware has never been flashed (FAB-FW-012).
+runner = "probe-rs run --chip STM32G474RETx"
+rustflags = [
+  # cortex-m-rt linker script (includes memory.x from build.rs's OUT_DIR). defmt.x is
+  # added by build.rs only with the `dev` feature (defmt is optional).
+  "-C", "link-arg=-Tlink.x",
+  # Keep sections page-unaligned in the ELF (flash is not paged); cortex-m-quickstart.
+  "-C", "link-arg=--nmagic",
+]
+
+[env]
+# defmt log filter (dev feature only).
+DEFMT_LOG = "info"

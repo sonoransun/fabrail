@@ -1,0 +1,84 @@
+# fabrail host workspace.
+#
+# The no_std crates (types, params, hal, core, safety, rt, exo-safety, exo) spell out
+# every package field and dependency and never use `workspace = true`, so the separate
+# `firmware/` workspace can consume them as plain path dependencies. Only the std crates
+# (plant, sim, py, exo-sim, web) inherit from this file.
+#
+# `firmware/` is its own workspace (RTIC + stm32g4xx-hal) and is never a member here:
+# its target-gated dependencies, `build.target` and `panic = "abort"` profile must not
+# leak into host builds.
+
+[workspace]
+resolver = "3"
+members = [
+    "crates/fabrail-types",
+    "crates/fabrail-params",
+    "crates/fabrail-hal",
+    "crates/fabrail-core",
+    "crates/fabrail-safety",
+    "crates/fabrail-rt",
+    "crates/fabrail-plant",
+    "crates/fabrail-sim",
+    "crates/fabrail-py",
+    "crates/fabrail-exo-safety",
+    "crates/fabrail-exo",
+    "crates/fabrail-exo-sim",
+    "crates/fabrail-web",
+]
+# `cargo test` / `cargo build` without -p never link libpython (fabrail-py) and never
+# build the wasm cdylib (fabrail-web); both have their own build commands.
+default-members = [
+    "crates/fabrail-types",
+    "crates/fabrail-params",
+    "crates/fabrail-hal",
+    "crates/fabrail-core",
+    "crates/fabrail-safety",
+    "crates/fabrail-rt",
+    "crates/fabrail-plant",
+    "crates/fabrail-sim",
+    "crates/fabrail-exo-safety",
+    "crates/fabrail-exo",
+    "crates/fabrail-exo-sim",
+]
+exclude = ["firmware"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.89"
+license = "MIT"
+repository = "https://github.com/sonoransun/fabrail"
+
+# std crates only. no_std crates pin their own versions (libm, serde) explicitly.
+[workspace.dependencies]
+nalgebra = "0.35"
+rayon = "1.12"
+serde = { version = "1.0.228", features = ["derive"] }
+# float_roundtrip: exact f64 parsing, so Params/Scenario JSON round trips are bit-exact
+# (the default parser is 1 ulp off on some 17-digit decimals, e.g. DOOR v_open 0.18384776310850234).
+serde_json = { version = "1", features = ["float_roundtrip"] }
+pyo3 = "0.29"
+proptest = "1.10"
+approx = "0.5"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+
+# Agent iteration profile: release-grade code generation (anchors and golden hash are
+# asserted on optimised builds) without the LTO/cgu-1 link cost.
+#   cargo test --profile itest
+[profile.itest]
+inherits = "release"
+lto = false
+codegen-units = 16
+incremental = true
+
+[profile.dev]
+opt-level = 1
+
+# Third-party dependencies (nalgebra, rayon, proptest) are always optimised.
+[profile.dev.package."*"]
+opt-level = 3

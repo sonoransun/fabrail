@@ -1,0 +1,22 @@
+[package]
+name = "fabrail-types"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.89"
+license = "MIT"
+description = "fabrail shared vocabulary: units, raw HAL samples, commands, states, faults, telemetry, and the single math entry point (fmath)"
+
+[lib]
+# Doc comments carry physics notation, not runnable Rust.
+doctest = false
+
+# no_std: every dependency is spelled out (no workspace inheritance) so the firmware
+# workspace can consume this crate as a path dependency.
+[dependencies]
+# The ONLY math implementation for every crate (host and MCU): soft-float libm, so the
+# same code path runs on aarch64-apple-darwin, thumbv7em and wasm32.
+libm = { version = "0.2.16", default-features = false, features = ["force-soft-floats"] }
+serde = { version = "1.0.228", default-features = false, features = ["derive"], optional = true }
+
+[features]
+serde = ["dep:serde"]

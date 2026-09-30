@@ -1,0 +1,24 @@
+[package]
+name = "fabrail-core"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.89"
+license = "MIT"
+description = "fabrail control core (function channel): levitation, motion, haptics, seismic, supervisor; f32, allocation-free"
+
+[lib]
+doctest = false
+
+# no_std: every dependency is spelled out (no workspace inheritance).
+# Never depends on fabrail-safety (monitor independence) or on nalgebra/num-traits
+# (feature-unification trap: std num-traits would change host math).
+[dependencies]
+fabrail-types = { path = "../fabrail-types" }
+fabrail-params = { path = "../fabrail-params" }
+serde = { version = "1.0.228", default-features = false, features = ["derive"], optional = true }
+
+[dev-dependencies]
+proptest = "1.10"
+
+[features]
+serde = ["dep:serde", "fabrail-types/serde", "fabrail-params/serde"]

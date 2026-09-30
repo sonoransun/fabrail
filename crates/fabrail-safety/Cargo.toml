@@ -1,0 +1,20 @@
+[package]
+name = "fabrail-safety"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.89"
+license = "MIT"
+description = "fabrail independent safety monitor (monitor channel): integer-only per-tick checks driving STO/ASC on propulsion"
+
+[lib]
+doctest = false
+
+# no_std: every dependency is spelled out (no workspace inheritance).
+# Dependency rule (IEC 61508-3 independence): types + params ONLY, never fabrail-core,
+# fabrail-plant or any exo control crate. A transitive `cargo metadata` test enforces it.
+[dependencies]
+fabrail-types = { path = "../fabrail-types" }
+fabrail-params = { path = "../fabrail-params" }
+
+[dev-dependencies]
+proptest = "1.10"

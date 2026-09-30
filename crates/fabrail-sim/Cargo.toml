@@ -1,0 +1,32 @@
+[package]
+name = "fabrail-sim"
+description = "fabrail SIL harness: scenarios, SimBoard, sensor noise (in-repo RNG), events, recorder, metrics, batch runs, replay and the steppable Session"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lib]
+doctest = false
+
+# std crate.
+[dependencies]
+fabrail-types = { path = "../fabrail-types", features = ["serde"] }
+fabrail-params = { path = "../fabrail-params", features = ["serde"] }
+fabrail-hal = { path = "../fabrail-hal" }
+fabrail-core = { path = "../fabrail-core" }
+fabrail-safety = { path = "../fabrail-safety" }
+fabrail-rt = { path = "../fabrail-rt", features = ["fault-injection"] }
+fabrail-plant = { path = "../fabrail-plant" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+rayon = { workspace = true, optional = true }
+
+[dev-dependencies]
+approx = { workspace = true }
+proptest = { workspace = true }
+
+[features]
+default = ["parallel"]
+# rayon-backed run_batch. fabrail-web (wasm32) builds with default-features = false.
+parallel = ["dep:rayon"]
